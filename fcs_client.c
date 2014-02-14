@@ -183,17 +183,31 @@ void print_usage (FILE* stream, int exit_code)
            "  -b  --blink                     Blink board leds\n"
            "  -r  --reset                     Reconfigure all options to its defaults\n"
            "  -o  --sethostname  <host>       Sets hostname to <host>\n"
-           "  -x  --setkx        <value>[nm]  Sets parameter Kx to <value> in UFIX25_0 format\n"
-           "  -y  --setky        <value>[nm]  Sets parameter Ky to <value> in UFIX25_0 format\n"
-           "  -s  --setksum      <value>[nm]  Sets parameter Ksum to <value> in FIX25_24 format\n"
+           "  -x  --setkx        <value>[nm]  Sets parameter Kx to <value>\n"
+           "                                    [in UFIX25_0 format]\n"
+           "  -y  --setky        <value>[nm]  Sets parameter Ky to <value>\n"
+           "                                   [in UFIX25_0 format]\n"
+           "  -s  --setksum      <value>      Sets parameter Ksum to <value>\n"
+           "                                   [in FIX25_24 format]\n"
            "  -j  --setswon                   Sets FPGA switching on\n"
            "  -k  --setswoff                  Sets FPGA switching off\n"
-           "  -d  --setdivclk    <value>      Sets FPGA switching divider clock to <value> \n"
-           "  -X  --getkx                     Gets parameter Kx\n"
-           "  -Y  --getky                     Gets parameter Ky\n"
-           "  -S  --getksum                   Gets parameter Ksum\n"
-           "  -J  --getsw                     Gets FPGA switching state\n"
-           "  -D  --getdivclk                 Gets FPGA switching divider value\n"
+           "  -d  --setdivclk    <value>      Sets FPGA switching divider clock to <value>\n"
+           "                                    [in number of ADC clock cycles]\n"
+           "  -p  --setphaseclk  <value>      Sets FPGA switching phase clock to <value>\n"
+           "                                    [in number of ADC clock cycles]\n"
+           "  -q  --setadcclk    <value>      Sets FPGA reference ADC clock to <value> [in Hertz]\n"
+           "  -i  --setddsfreq   <value>      Sets FPGA DDS Frequency to <value> [in Hertz]\n"
+           "  -X  --getkx                     Gets parameter Kx [nm] in UFIX25_0 format\n"
+           "  -Y  --getky                     Gets parameter Ky [nm] in UFIX25_0 format\n"
+           "  -S  --getksum                   Gets parameter Ksum in FIX25_24 format\n"
+           "  -J  --getsw                     Gets FPGA switching state \n"
+           "                                    [0x1 is no switching and 0x3 is switching]\n"
+           "  -D  --getdivclk                 Gets FPGA switching divider clock value\n"
+           "                                    [in number of ADC clock cycles]\n"
+           "  -P  --getphaseclk               Gets FPGA switching phase clock\n"
+           "                                    [in number of ADC clock cycles]\n"
+           "  -Q  --getadcclk                 Gets FPGA reference ADC clock [in Hertz]\n"
+           "  -I  --getddsfreq                Gets FPGA DDS Frequency [in Hertz]\n"
            );
   exit (exit_code);
 }
@@ -211,11 +225,17 @@ static struct option long_options[] =
     {"setswon",         no_argument,         NULL, 'j'},
     {"setswoff",        no_argument,         NULL, 'k'},
     {"setdivclk",       required_argument,   NULL, 'd'},
+    {"setphaseclk",     required_argument,   NULL, 'p'},
+    {"setadcclk",       required_argument,   NULL, 'q'},
+    {"setddsfreq",      required_argument,   NULL, 'i'},
     {"getkx",           no_argument,         NULL, 'X'},
     {"getky",           no_argument,         NULL, 'Y'},
     {"getksum",         no_argument,         NULL, 'S'},
     {"getsw ",          no_argument,         NULL, 'J'},
     {"getdivclk",       no_argument,         NULL, 'D'},
+    {"getphaseclk",     no_argument,         NULL, 'P'},
+    {"getadcclk",       required_argument,   NULL, 'Q'},
+    {"getddsfreq",      required_argument,   NULL, 'I'},
     {NULL, 0, NULL, 0}
 };
 
@@ -252,7 +272,19 @@ struct call_func_t {
 #define SET_SW_DIVCLK_NAME      "set_sw_divclk"
 #define GET_SW_DIVCLK_ID        12
 #define GET_SW_DIVCLK_NAME      "get_sw_divclk"
-#define END_ID                  13
+#define SET_SW_PHASECLK_ID      13
+#define SET_SW_PHASECLK_NAME    "set_sw_phaseclk"
+#define GET_SW_PHASECLK_ID      14
+#define GET_SW_PHASECLK_NAME    "get_sw_phaseclk"
+#define SET_ADCCLK_ID           15
+#define SET_ADCCLK_NAME         "set_adc_clk"
+#define GET_ADCCLK_ID           16
+#define GET_ADCCLK_NAME         "get_adc_clk"
+#define SET_DDSFREQ_ID          17
+#define SET_DDSFREQ_NAME        "set_dds_freq"
+#define GET_DDSFREQ_ID          18
+#define GET_DDSFREQ_NAME        "get_dds_freq"
+#define END_ID                  19
 
 static struct call_func_t call_func[END_ID] =
 {
@@ -268,7 +300,13 @@ static struct call_func_t call_func[END_ID] =
     {SET_SW_OFF_NAME            , 0, {0}, {0}},
     {GET_SW_NAME                , 0, {0}, {0}},
     {SET_SW_DIVCLK_NAME         , 0, {0}, {0}},
-    {GET_SW_DIVCLK_NAME         , 0, {0}, {0}}
+    {GET_SW_DIVCLK_NAME         , 0, {0}, {0}},
+    {SET_SW_PHASECLK_NAME       , 0, {0}, {0}},
+    {GET_SW_PHASECLK_NAME       , 0, {0}, {0}},
+    {SET_ADCCLK_NAME            , 0, {0}, {0}},
+    {GET_ADCCLK_NAME            , 0, {0}, {0}},
+    {SET_DDSFREQ_NAME           , 0, {0}, {0}},
+    {GET_DDSFREQ_NAME           , 0, {0}, {0}}
 };
 
 int main(int argc, char *argv[])
@@ -283,25 +321,31 @@ int main(int argc, char *argv[])
     
     program_name = argv[0];
 
-   //{"help",            no_argument,         NULL, 'h'},
-   //{"verbose",         no_argument,         NULL, 'v'},
-   //{"blink",           no_argument,         NULL, 'b'},
-   //{"reset",           no_argument,         NULL, 'r'},
-   //{"sethostname",     required_argument,   NULL, 'o'},
-   //{"setkx",           required_argument,   NULL, 'x'},
-   //{"setky",           required_argument,   NULL, 'y'},
-   //{"setksum",         required_argument,   NULL, 's'},
-   //{"setswon",         no_argument,         NULL, 'j'},
-   //{"setswoff",        no_argument,         NULL, 'k'},
-   //{"setdivclk",       required_argument,   NULL, 'd'},
-   //{"getkx",           no_argument,         NULL, 'X'},
-   //{"getky",           no_argument,         NULL, 'Y'},
-   //{"getksum",         no_argument,         NULL, 'S'},
-   //{"getsw ",          no_argument,         NULL, 'J'},
-   //{"getdivclk",       no_argument,         NULL, 'D'},
-
+    //{"help",            no_argument,         NULL, 'h'}
+    //{"verbose",         no_argument,         NULL, 'v'}
+    //{"blink",           no_argument,         NULL, 'b'}
+    //{"reset",           no_argument,         NULL, 'r'}
+    //{"sethostname",     required_argument,   NULL, 'o'}
+    //{"setkx",           required_argument,   NULL, 'x'}
+    //{"setky",           required_argument,   NULL, 'y'}
+    //{"setksum",         required_argument,   NULL, 's'}
+    //{"setswon",         no_argument,         NULL, 'j'}
+    //{"setswoff",        no_argument,         NULL, 'k'}
+    //{"setdivclk",       required_argument,   NULL, 'd'}
+    //{"setphaseclk",     required_argument,   NULL, 'p'}
+    //{"setadcclk",       required_argument,   NULL, 'q'}
+    //{"setddsfreq",      required_argument,   NULL, 'r'}
+    //{"getkx",           no_argument,         NULL, 'X'}
+    //{"getky",           no_argument,         NULL, 'Y'}
+    //{"getksum",         no_argument,         NULL, 'S'}
+    //{"getsw ",          no_argument,         NULL, 'J'}
+    //{"getdivclk",       no_argument,         NULL, 'D'}
+    //{"getphaseclk",     no_argument,         NULL, 'P'}
+    //{"getadcclk",       required_argument,   NULL, 'Q'}
+    //{"getddsfreq",      required_argument,   NULL, 'R'}
+    
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:XYSJD", long_options, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:XYSJDPQI", long_options, NULL)) != -1)
     {
          // check to see if a single character or long option came through
          switch (ch)
@@ -351,20 +395,52 @@ int main(int argc, char *argv[])
                   call_func[SET_SW_DIVCLK_ID].call = 1;
                   *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) atoi(optarg);
                   break;
+               // Set PHASECLK
+              case 'p':
+                  call_func[SET_SW_PHASECLK_ID].call = 1;
+                  *((uint32_t *)call_func[SET_SW_PHASECLK_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+               // Set ADCCLK
+              case 'q':
+                  call_func[SET_ADCCLK_ID].call = 1;
+                  *((uint32_t *)call_func[SET_ADCCLK_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+               // Set DDSFREQ
+              case 'i':
+                  call_func[SET_DDSFREQ_ID].call = 1;
+                  *((uint32_t *)call_func[SET_DDSFREQ_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+               // Get Kx
               case 'X':
                   call_func[GET_KX_ID].call = 1;
                   break;
+               // Get Ky
               case 'Y':
                   call_func[GET_KY_ID].call = 1;
                   break;
+              // Get Ksum
               case 'S':
                   call_func[GET_KSUM_ID].call = 1;
                   break;
+              // Get Switching Off
               case 'J':
                   call_func[GET_SW_ID].call = 1;
                   break;
+              // Get DIVCLK
               case 'D':
                   call_func[GET_SW_DIVCLK_ID].call = 1;
+                  break;
+              // Get PHASECLK
+              case 'P':
+                  call_func[GET_SW_PHASECLK_ID].call = 1;
+                  break;
+              // Get ADCCLK
+              case 'Q':
+                  call_func[GET_ADCCLK_ID].call = 1;
+                  break;
+              // Get DDSFREQ
+              case 'I':
+                  call_func[GET_DDSFREQ_ID].call = 1;
                   break;
               case ':':
               case '?':   /* The user specified an invalid option.  */
