@@ -178,28 +178,44 @@ void print_usage (FILE* stream, int exit_code)
 {
   fprintf (stream, "Usage:  %s options \n", program_name);
   fprintf (stream,
-           "  -h  --help                  Display this usage information.\n"
-           "  -v  --verbose               Print verbose messages.\n"
-           "  -b  --blink                 Blink board leds\n"
-           "  -r  --reset                 Reconfigure all options to its defaults\n"
-           "  -x  --kx        <value>     Sets parameter Kx to <value>\n"
-           "  -y  --ky        <value>     Sets parameter Ky to <value>\n"
-           "  -s  --ksum      <value>     Sets parameter Ksum to <value>\n"
-           "  -o  --hostname  <host>      Sets hostname to <host>\n"
+           "  -h  --help                      Display this usage information.\n"
+           "  -v  --verbose                   Print verbose messages.\n"
+           "  -b  --blink                     Blink board leds\n"
+           "  -r  --reset                     Reconfigure all options to its defaults\n"
+           "  -o  --sethostname  <host>       Sets hostname to <host>\n"
+           "  -x  --setkx        <value>[nm]  Sets parameter Kx to <value> in UFIX25_0 format\n"
+           "  -y  --setky        <value>[nm]  Sets parameter Ky to <value> in UFIX25_0 format\n"
+           "  -s  --setksum      <value>[nm]  Sets parameter Ksum to <value> in FIX25_24 format\n"
+           "  -j  --setswon                   Sets FPGA switching on\n"
+           "  -k  --setswoff                  Sets FPGA switching off\n"
+           "  -d  --setdivclk    <value>      Sets FPGA switching divider clock to <value> \n"
+           "  -X  --getkx                     Gets parameter Kx\n"
+           "  -Y  --getky                     Gets parameter Ky\n"
+           "  -S  --getksum                   Gets parameter Ksum\n"
+           "  -J  --getsw                     Gets FPGA switching state\n"
+           "  -D  --getdivclk                 Gets FPGA switching divider value\n"
            );
   exit (exit_code);
 }
 
 static struct option long_options[] =
 {
-    {"help", no_argument, NULL, 'h'},
-    {"verbose", no_argument, NULL, 'v'},
-    {"blink", no_argument, NULL, 'b'},
-    {"reset", no_argument, NULL, 'r'},
-    {"kx", required_argument, NULL, 'x'},
-    {"ky", required_argument, NULL, 'y'},
-    {"ksum", required_argument, NULL, 's'},
-    {"hostname", required_argument, NULL, 'o'},
+    {"help",            no_argument,         NULL, 'h'},
+    {"verbose",         no_argument,         NULL, 'v'},
+    {"blink",           no_argument,         NULL, 'b'},
+    {"reset",           no_argument,         NULL, 'r'},
+    {"sethostname",     required_argument,   NULL, 'o'},
+    {"setkx",           required_argument,   NULL, 'x'},
+    {"setky",           required_argument,   NULL, 'y'},
+    {"setksum",         required_argument,   NULL, 's'},
+    {"setswon",         no_argument,         NULL, 'j'},
+    {"setswoff",        no_argument,         NULL, 'k'},
+    {"setdivclk",       required_argument,   NULL, 'd'},
+    {"getkx",           no_argument,         NULL, 'X'},
+    {"getky",           no_argument,         NULL, 'Y'},
+    {"getksum",         no_argument,         NULL, 'S'},
+    {"getsw ",          no_argument,         NULL, 'J'},
+    {"getdivclk",       no_argument,         NULL, 'D'},
     {NULL, 0, NULL, 0}
 };
 
@@ -216,19 +232,43 @@ struct call_func_t {
 #define RESET_FUNC_NAME         "reset"
 #define SET_KX_ID               2
 #define SET_KX_NAME             "set_kx"
-#define SET_KY_ID               3
+#define GET_KX_ID               3
+#define GET_KX_NAME             "get_kx"
+#define SET_KY_ID               4
 #define SET_KY_NAME             "set_ky"
-#define SET_KSUM_ID             4
+#define GET_KY_ID               5
+#define GET_KY_NAME             "set_ky"
+#define SET_KSUM_ID             6
 #define SET_KSUM_NAME           "set_ksum"
-#define END_ID                  5
+#define GET_KSUM_ID             7
+#define GET_KSUM_NAME           "get_ksum"
+#define SET_SW_ON_ID            8
+#define SET_SW_ON_NAME          "set_sw_on"
+#define SET_SW_OFF_ID           9
+#define SET_SW_OFF_NAME         "set_sw_off"
+#define GET_SW_ID               10
+#define GET_SW_NAME             "get_sw"
+#define SET_SW_DIVCLK_ID        11
+#define SET_SW_DIVCLK_NAME      "set_sw_divclk"
+#define GET_SW_DIVCLK_ID        12
+#define GET_SW_DIVCLK_NAME      "get_sw_divclk"
+#define END_ID                  13
 
 static struct call_func_t call_func[END_ID] =
 {
     {BLINK_FUNC_NAME            , 0, {0}, {0}},
     {RESET_FUNC_NAME            , 0, {0}, {0}},
     {SET_KX_NAME                , 0, {0}, {0}},
+    {GET_KX_NAME                , 0, {0}, {0}},
     {SET_KY_NAME                , 0, {0}, {0}},
-    {SET_KSUM_NAME              , 0, {0}, {0}}
+    {GET_KY_NAME                , 0, {0}, {0}},
+    {SET_KSUM_NAME              , 0, {0}, {0}},
+    {GET_KSUM_NAME              , 0, {0}, {0}},
+    {SET_SW_ON_NAME             , 0, {0}, {0}},
+    {SET_SW_OFF_NAME            , 0, {0}, {0}},
+    {GET_SW_NAME                , 0, {0}, {0}},
+    {SET_SW_DIVCLK_NAME         , 0, {0}, {0}},
+    {GET_SW_DIVCLK_NAME         , 0, {0}, {0}}
 };
 
 int main(int argc, char *argv[])
@@ -243,8 +283,25 @@ int main(int argc, char *argv[])
     
     program_name = argv[0];
 
+   //{"help",            no_argument,         NULL, 'h'},
+   //{"verbose",         no_argument,         NULL, 'v'},
+   //{"blink",           no_argument,         NULL, 'b'},
+   //{"reset",           no_argument,         NULL, 'r'},
+   //{"sethostname",     required_argument,   NULL, 'o'},
+   //{"setkx",           required_argument,   NULL, 'x'},
+   //{"setky",           required_argument,   NULL, 'y'},
+   //{"setksum",         required_argument,   NULL, 's'},
+   //{"setswon",         no_argument,         NULL, 'j'},
+   //{"setswoff",        no_argument,         NULL, 'k'},
+   //{"setdivclk",       required_argument,   NULL, 'd'},
+   //{"getkx",           no_argument,         NULL, 'X'},
+   //{"getky",           no_argument,         NULL, 'Y'},
+   //{"getksum",         no_argument,         NULL, 'S'},
+   //{"getsw ",          no_argument,         NULL, 'J'},
+   //{"getdivclk",       no_argument,         NULL, 'D'},
+
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbrx:y:s:o:", long_options, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:XYSJD", long_options, NULL)) != -1)
     {
          // check to see if a single character or long option came through
          switch (ch)
@@ -262,6 +319,10 @@ int main(int argc, char *argv[])
               case 'r':
                   call_func[RESET_FUNC_ID].call = 1;
                   break;
+              // Set Hostname
+              case 'o':
+                  hostname = strdup(optarg);
+                  break;
               // Set KX
               case 'x':
                   call_func[SET_KX_ID].call = 1;
@@ -277,9 +338,33 @@ int main(int argc, char *argv[])
                   call_func[SET_KSUM_ID].call = 1;
                   *((uint32_t *)call_func[SET_KSUM_ID].param_in) = (uint32_t) atoi(optarg);
                   break;
-              // Set Hostname
-              case 'o':
-                  hostname = strdup(optarg);
+              // Set Switching On
+              case 'j':
+                  call_func[SET_SW_ON_ID].call = 1;
+                  break;
+               // Set Switching Off
+              case 'k':
+                  call_func[SET_SW_OFF_ID].call = 1;
+                  break;
+               // Set DIVCLK
+              case 'd':
+                  call_func[SET_SW_DIVCLK_ID].call = 1;
+                  *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+              case 'X':
+                  call_func[GET_KX_ID].call = 1;
+                  break;
+              case 'Y':
+                  call_func[GET_KY_ID].call = 1;
+                  break;
+              case 'S':
+                  call_func[GET_KSUM_ID].call = 1;
+                  break;
+              case 'J':
+                  call_func[GET_SW_ID].call = 1;
+                  break;
+              case 'D':
+                  call_func[GET_SW_DIVCLK_ID].call = 1;
                   break;
               case ':':
               case '?':   /* The user specified an invalid option.  */
@@ -371,12 +456,7 @@ int main(int argc, char *argv[])
                 funcs->list[i].output_size);
     }
 
-    // Call all the functions the user specified with its parameters
-    //struct sllp_func_info *func_blink_leds = &funcs->list[0];
-    //printf(C"Server, start blinking leds...\n");
-    //TRY("blink leds", sllp_func_execute(client, func_blink_leds,
-    //                                     &func_error, NULL, NULL));
-    
+    // Call all the functions the user specified with its parameters   
     struct sllp_func_info *func;
     uint8_t func_error;
     
@@ -385,6 +465,13 @@ int main(int argc, char *argv[])
             func = &funcs->list[i];
             TRY((call_func[i].name), sllp_func_execute(client, func,
                                             &func_error, call_func[i].param_in, call_func[i].param_out));
+        }
+    }
+
+    // Show all results
+    for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
+        if (call_func[i].call && *((uint32_t *)call_func[i].param_out) != 0) {
+            printf ("%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].param_out));
         }
     }
 
