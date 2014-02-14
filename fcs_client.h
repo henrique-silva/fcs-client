@@ -23,16 +23,16 @@
 #include <inttypes.h>
 #include <netinet/tcp.h>
 
-#include <sllp/client.h>
+#include <bsmp/client.h>
 
 struct _recv_pkt_t {
-  uint8_t data[SLLP_MAX_MESSAGE];
+  uint8_t data[BSMP_MAX_MESSAGE];
 };
 
 typedef struct _recv_pkt_t recv_pkt_t;
 
 struct _send_pkt_t {
-  uint8_t data[SLLP_MAX_MESSAGE];
+  uint8_t data[BSMP_MAX_MESSAGE];
 };
 
 typedef struct _send_pkt_t send_pkt_t;

@@ -1,7 +1,7 @@
 CC = gcc
 
 CFLAGS = -Wall -I.
-LFLAGS = -lsllp
+LFLAGS = -lbsmp
 
 OUT = fcs_client
 

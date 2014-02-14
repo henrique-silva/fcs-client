@@ -18,14 +18,14 @@
 #include "fcs_client.h"
 
 #define C "CLIENT: "
-#define PACKET_SIZE             SLLP_MAX_MESSAGE
-#define PACKET_HEADER           SLLP_HEADER_SIZE
+#define PACKET_SIZE             BSMP_MAX_MESSAGE
+#define PACKET_HEADER           BSMP_HEADER_SIZE
 
 #define TRY(name, func)\
     do {\
-        enum sllp_err err = func;\
+        enum bsmp_err err = func;\
         if(err) {\
-            fprintf(stderr, C "%s: %s\n", name, sllp_error_str(err));\
+            fprintf(stderr, C "%s: %s\n", name, bsmp_error_str(err));\
             exit(-1);\
         }\
     }while(0)
@@ -114,7 +114,7 @@ void print_packet (char* pre, uint8_t *data, uint32_t size)
 
 int bpm_send(uint8_t *data, uint32_t *count)
 {
-    uint8_t  packet[SLLP_MAX_MESSAGE];
+    uint8_t  packet[BSMP_MAX_MESSAGE];
     uint32_t packet_size = *count;
     uint32_t len = *count;
 
@@ -503,24 +503,24 @@ int main(int argc, char *argv[])
     freeaddrinfo(servinfo); // all done with this structure
 
      // Create a new client instance
-    sllp_client_t *client = sllp_client_new(bpm_send, bpm_recv);
+    bsmp_client_t *client = bsmp_client_new(bpm_send, bpm_recv);
 
     if(!client)
     {
-        fprintf(stderr, "Error allocating SLLP instance\n");
+        fprintf(stderr, "Error allocating BSMP instance\n");
         goto exit_close;
     }
 
     // Initialize the client instance (communication must be already working)
-    enum sllp_err err;
-    if((err = sllp_client_init(client)))
+    enum bsmp_err err;
+    if((err = bsmp_client_init(client)))
     {
-        fprintf(stderr, "sllp_client_init: %s\n", sllp_error_str(err));
+        fprintf(stderr, "bsmp_client_init: %s\n", bsmp_error_str(err));
         goto exit_destroy;
     }
 
-    struct sllp_func_info_list *funcs;
-    TRY("funcs_list", sllp_get_funcs_list(client, &funcs));
+    struct bsmp_func_info_list *funcs;
+    TRY("funcs_list", bsmp_get_funcs_list(client, &funcs));
 
     // Check the number of functions
     printf("\n"C"Server has %d Functions(s):\n", funcs->count);
@@ -533,13 +533,13 @@ int main(int argc, char *argv[])
     }
 
     // Call all the functions the user specified with its parameters   
-    struct sllp_func_info *func;
+    struct bsmp_func_info *func;
     uint8_t func_error;
     
     for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
         if (call_func[i].call) {
             func = &funcs->list[i];
-            TRY((call_func[i].name), sllp_func_execute(client, func,
+            TRY((call_func[i].name), bsmp_func_execute(client, func,
                                             &func_error, call_func[i].param_in, call_func[i].param_out));
         }
     }
@@ -554,8 +554,8 @@ int main(int argc, char *argv[])
     close(sockfd);
 
 exit_destroy:
-    sllp_client_destroy(client);
-    puts("SLLP deallocated");
+    bsmp_client_destroy(client);
+    puts("BSMP deallocated");
 exit_close:
     close(sockfd);
     puts("Socket closed");
