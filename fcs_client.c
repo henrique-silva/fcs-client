@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <inttypes.h>
 #include <arpa/inet.h>
+#include <getopt.h>
 
 #include "fcs_client.h"
 
@@ -24,12 +25,16 @@
     do {\
         enum sllp_err err = func;\
         if(err) {\
-            fprintf(stderr, C name": %s\n", sllp_error_str(err));\
+            fprintf(stderr, C "%s: %s\n", name, sllp_error_str(err));\
             exit(-1);\
         }\
     }while(0)
 
 #define PORT "8080" // the port client will be connecting to
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+const char* program_name;
+char *hostname = NULL;
 
 /* Our socket */
 int sockfd;
@@ -37,13 +42,6 @@ int sockfd;
 /* Our send/receive packet */
 recv_pkt_t recv_pkt;
 send_pkt_t send_pkt;
-
-/* Our receive packet */
-//recv_pkt_t recv_pkt;
-//send_pkt_t send_pkt;
-//
-//struct sllp_raw_packet recv_packet = {.data = recv_pkt.data };
-//struct sllp_raw_packet send_packet = {.data = send_pkt.data };
 
 /***************************************************************/
 /********************** Utility functions **********************/
@@ -174,25 +172,136 @@ int bpm_recv(uint8_t *data, uint32_t *count)
     return 0;
 }
 
+// Command-line handling
+
+void print_usage (FILE* stream, int exit_code)
+{
+  fprintf (stream, "Usage:  %s options \n", program_name);
+  fprintf (stream,
+           "  -h  --help                  Display this usage information.\n"
+           "  -v  --verbose               Print verbose messages.\n"
+           "  -b  --blink                 Blink board leds\n"
+           "  -r  --reset                 Reconfigure all options to its defaults\n"
+           "  -x  --kx        <value>     Sets parameter Kx to <value>\n"
+           "  -y  --ky        <value>     Sets parameter Ky to <value>\n"
+           "  -s  --ksum      <value>     Sets parameter Ksum to <value>\n"
+           "  -o  --hostname  <host>      Sets hostname to <host>\n"
+           );
+  exit (exit_code);
+}
+
+static struct option long_options[] =
+{
+    {"help", no_argument, NULL, 'h'},
+    {"verbose", no_argument, NULL, 'v'},
+    {"blink", no_argument, NULL, 'b'},
+    {"reset", no_argument, NULL, 'r'},
+    {"kx", required_argument, NULL, 'x'},
+    {"ky", required_argument, NULL, 'y'},
+    {"ksum", required_argument, NULL, 's'},
+    {"hostname", required_argument, NULL, 'o'},
+    {NULL, 0, NULL, 0}
+};
+
+struct call_func_t {
+    const char *name;
+    int call;
+    uint8_t param_in[sizeof(uint32_t)*4]; // 4 32-bits variables
+    uint8_t param_out[sizeof(uint32_t)]; // 1 32-bit variable
+};
+
+#define BLINK_FUNC_ID           0
+#define BLINK_FUNC_NAME         "blink"
+#define RESET_FUNC_ID           1
+#define RESET_FUNC_NAME         "reset"
+#define SET_KX_ID               2
+#define SET_KX_NAME             "set_kx"
+#define SET_KY_ID               3
+#define SET_KY_NAME             "set_ky"
+#define SET_KSUM_ID             4
+#define SET_KSUM_NAME           "set_ksum"
+#define END_ID                  5
+
+static struct call_func_t call_func[END_ID] =
+{
+    {BLINK_FUNC_NAME            , 0, {0}, {0}},
+    {RESET_FUNC_NAME            , 0, {0}, {0}},
+    {SET_KX_NAME                , 0, {0}, {0}},
+    {SET_KY_NAME                , 0, {0}, {0}},
+    {SET_KSUM_NAME              , 0, {0}, {0}}
+};
+
 int main(int argc, char *argv[])
 {
-    //int numbytes;
-    //char buf[MAXDATASIZE];
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
     int yes = 1;
 
-    if (argc != 2) {
-        fprintf(stderr,"usage: client hostname\n");
-        exit(1);
+    int verbose = 0;
+    int ch;
+    
+    program_name = argv[0];
+
+    // loop over all of the options
+    while ((ch = getopt_long(argc, argv, "hvbrx:y:s:o:", long_options, NULL)) != -1)
+    {
+         // check to see if a single character or long option came through
+         switch (ch)
+         {
+              case 'h':
+                  print_usage(stderr, 0);
+              case 'v':
+                  verbose = 1;
+                  break;
+              // Blink leds
+              case 'b':
+                  call_func[BLINK_FUNC_ID].call = 1;
+                  break;
+              // Reset to default
+              case 'r':
+                  call_func[RESET_FUNC_ID].call = 1;
+                  break;
+              // Set KX
+              case 'x':
+                  call_func[SET_KX_ID].call = 1;
+                  *((uint32_t *)call_func[SET_KX_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+              // Set KY
+              case 'y':
+                  call_func[SET_KY_ID].call = 1;
+                  *((uint32_t *)call_func[SET_KY_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+              // Set Ksum
+              case 's':
+                  call_func[SET_KSUM_ID].call = 1;
+                  *((uint32_t *)call_func[SET_KSUM_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+              // Set Hostname
+              case 'o':
+                  hostname = strdup(optarg);
+                  break;
+              case ':':
+              case '?':   /* The user specified an invalid option.  */
+                   print_usage (stderr, 1);
+              case -1:    /* Done with options.  */
+                  break;
+              default:
+                fprintf(stderr, "%s: bad option\n", program_name);
+                print_usage(stderr, 1);
+         }    
     }
+
+    if (hostname == NULL) {
+        fprintf(stderr, "%s: hostname not set!\n", program_name);
+        print_usage(stderr, 1);
+    } 
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(hostname, PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -249,11 +358,6 @@ int main(int argc, char *argv[])
         goto exit_destroy;
     }
 
-    //if (tcp_client_handle_server(sockfd, &send_pkt) == -1) {
-    //    fprintf(stderr, "clinet: failed to handle client\n");
-    //    return -3;
-    //}
-
     struct sllp_func_info_list *funcs;
     TRY("funcs_list", sllp_get_funcs_list(client, &funcs));
 
@@ -267,16 +371,22 @@ int main(int argc, char *argv[])
                 funcs->list[i].output_size);
     }
 
-    // Call the first one
-    struct sllp_func_info *func_convert_ads = &funcs->list[0];
-    printf(C"Server, start the conversions of the A/D converters. NOW!!!\n");
+    // Call all the functions the user specified with its parameters
+    //struct sllp_func_info *func_blink_leds = &funcs->list[0];
+    //printf(C"Server, start blinking leds...\n");
+    //TRY("blink leds", sllp_func_execute(client, func_blink_leds,
+    //                                     &func_error, NULL, NULL));
+    
+    struct sllp_func_info *func;
     uint8_t func_error;
-    TRY("convert ads", sllp_func_execute(client, func_convert_ads,
-                                         &func_error, NULL, NULL));
-    func_convert_ads = &funcs->list[1];
-    printf(C"Server, start blink leds. NOW!!!\n");
-    TRY("blink leds", sllp_func_execute(client, func_convert_ads,
-                                         &func_error, NULL, NULL));
+    
+    for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
+        if (call_func[i].call) {
+            func = &funcs->list[i];
+            TRY((call_func[i].name), sllp_func_execute(client, func,
+                                            &func_error, call_func[i].param_in, call_func[i].param_out));
+        }
+    }
 
     close(sockfd);
 
@@ -286,5 +396,6 @@ exit_destroy:
 exit_close:
     close(sockfd);
     puts("Socket closed");
+    free (hostname);
     return 0;
 }
