@@ -51,7 +51,7 @@ int sendall(uint8_t *buf, uint32_t *len)
 {
     uint32_t total = 0;        // how many bytes we've sent
     uint32_t bytesleft = *len; // how many we have left to send
-    uint32_t n;
+    int32_t n;
 
     while(total < *len) {
         n = send(sockfd, (char *)buf+total, bytesleft, 0);
@@ -69,7 +69,7 @@ int recvall(uint8_t *buf, uint32_t *len)
 {
     uint32_t total = 0;        // how many bytes we've recv
     uint32_t bytesleft = *len; // how many we have left to recv
-    uint32_t n;
+    int32_t n;
 
     while(total < *len) {
         n = recv(sockfd, (char *)buf+total, bytesleft, 0);
@@ -197,6 +197,16 @@ void print_usage (FILE* stream, int exit_code)
            "                                    [in number of ADC clock cycles]\n"
            "  -q  --setadcclk    <value>      Sets FPGA reference ADC clock to <value> [in Hertz]\n"
            "  -i  --setddsfreq   <value>      Sets FPGA DDS Frequency to <value> [in Hertz]\n"
+           "  -l  --setsamples   <number of samples>\n"
+           "                                  Sets FPGA Acquisition parameters\n"
+           "                                  [<number of samples> must be between 4 and\n"
+           "                                  ??? (TBD) \n"
+           "  -c  --setchan      <channel> \n"
+           "                                  Sets FPGA Acquisition parameters\n"
+           "                                  [<channel> must be one of the following:\n"
+           "                                  0 -> ADC; 1-> TBT Amp; 2 -> TBT Pos\n"
+           "                                  3 -> FOFB Amp; 4-> FOFB Pos]\n"
+           "  -t  --startacq                  Starts FPGA acquistion with the previous parameters\n"
            "  -X  --getkx                     Gets parameter Kx [nm] in UFIX25_0 format\n"
            "  -Y  --getky                     Gets parameter Ky [nm] in UFIX25_0 format\n"
            "  -S  --getksum                   Gets parameter Ksum in FIX25_24 format\n"
@@ -228,6 +238,9 @@ static struct option long_options[] =
     {"setphaseclk",     required_argument,   NULL, 'p'},
     {"setadcclk",       required_argument,   NULL, 'q'},
     {"setddsfreq",      required_argument,   NULL, 'i'},
+    {"setsamples",      required_argument,   NULL, 'l'},
+    {"setchan",         required_argument,   NULL, 'c'},
+    {"startacq",        no_argument,         NULL, 't'},
     {"getkx",           no_argument,         NULL, 'X'},
     {"getky",           no_argument,         NULL, 'Y'},
     {"getksum",         no_argument,         NULL, 'S'},
@@ -242,7 +255,7 @@ static struct option long_options[] =
 struct call_func_t {
     const char *name;
     int call;
-    uint8_t param_in[sizeof(uint32_t)*4]; // 4 32-bits variables
+    uint8_t param_in[sizeof(uint32_t)*2]; // 2 32-bits variables
     uint8_t param_out[sizeof(uint32_t)]; // 1 32-bit variable
 };
 
@@ -284,7 +297,13 @@ struct call_func_t {
 #define SET_DDSFREQ_NAME        "set_dds_freq"
 #define GET_DDSFREQ_ID          18
 #define GET_DDSFREQ_NAME        "get_dds_freq"
-#define END_ID                  19
+#define SET_ACQ_SAMPLES_ID      19
+#define SET_ACQ_SAMPLES_NAME    "set_acq_samples"
+#define SET_ACQ_CHAN_ID         20
+#define SET_ACQ_CHAN_NAME       "set_acq_chan"
+#define SET_ACQ_START_ID        21
+#define SET_ACQ_START_NAME      "set_acq_start"
+#define END_ID                  22
 
 static struct call_func_t call_func[END_ID] =
 {
@@ -306,7 +325,10 @@ static struct call_func_t call_func[END_ID] =
     {SET_ADCCLK_NAME            , 0, {0}, {0}},
     {GET_ADCCLK_NAME            , 0, {0}, {0}},
     {SET_DDSFREQ_NAME           , 0, {0}, {0}},
-    {GET_DDSFREQ_NAME           , 0, {0}, {0}}
+    {GET_DDSFREQ_NAME           , 0, {0}, {0}},
+    {SET_ACQ_SAMPLES_NAME       , 0, {0}, {0}},
+    {SET_ACQ_CHAN_NAME          , 0, {0}, {0}},
+    {SET_ACQ_START_NAME         , 0, {0}, {0}}
 };
 
 int main(int argc, char *argv[])
@@ -320,32 +342,9 @@ int main(int argc, char *argv[])
     int ch;
     
     program_name = argv[0];
-
-    //{"help",            no_argument,         NULL, 'h'}
-    //{"verbose",         no_argument,         NULL, 'v'}
-    //{"blink",           no_argument,         NULL, 'b'}
-    //{"reset",           no_argument,         NULL, 'r'}
-    //{"sethostname",     required_argument,   NULL, 'o'}
-    //{"setkx",           required_argument,   NULL, 'x'}
-    //{"setky",           required_argument,   NULL, 'y'}
-    //{"setksum",         required_argument,   NULL, 's'}
-    //{"setswon",         no_argument,         NULL, 'j'}
-    //{"setswoff",        no_argument,         NULL, 'k'}
-    //{"setdivclk",       required_argument,   NULL, 'd'}
-    //{"setphaseclk",     required_argument,   NULL, 'p'}
-    //{"setadcclk",       required_argument,   NULL, 'q'}
-    //{"setddsfreq",      required_argument,   NULL, 'r'}
-    //{"getkx",           no_argument,         NULL, 'X'}
-    //{"getky",           no_argument,         NULL, 'Y'}
-    //{"getksum",         no_argument,         NULL, 'S'}
-    //{"getsw ",          no_argument,         NULL, 'J'}
-    //{"getdivclk",       no_argument,         NULL, 'D'}
-    //{"getphaseclk",     no_argument,         NULL, 'P'}
-    //{"getadcclk",       required_argument,   NULL, 'Q'}
-    //{"getddsfreq",      required_argument,   NULL, 'R'}
     
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:XYSJDPQI", long_options, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:l:c:tXYSJDPQI", long_options, NULL)) != -1)
     {
          // check to see if a single character or long option came through
          switch (ch)
@@ -410,6 +409,20 @@ int main(int argc, char *argv[])
                   call_func[SET_DDSFREQ_ID].call = 1;
                   *((uint32_t *)call_func[SET_DDSFREQ_ID].param_in) = (uint32_t) atoi(optarg);
                   break;
+               // Set Acq Samples
+              case 'l':
+                  call_func[SET_ACQ_SAMPLES_ID].call = 1;
+                  *((uint32_t *)call_func[SET_ACQ_SAMPLES_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+               // Set Acq Chan
+              case 'c':
+                  call_func[SET_ACQ_CHAN_ID].call = 1;
+                  *((uint32_t *)call_func[SET_ACQ_CHAN_ID].param_in) = (uint32_t) atoi(optarg);
+                  break;
+               // Set Acq Start
+              case 't':
+                  call_func[SET_ACQ_START_ID].call = 1;
+                  break;
                // Get Kx
               case 'X':
                   call_func[GET_KX_ID].call = 1;
@@ -456,7 +469,18 @@ int main(int argc, char *argv[])
     if (hostname == NULL) {
         fprintf(stderr, "%s: hostname not set!\n", program_name);
         print_usage(stderr, 1);
-    } 
+    }
+
+    // Both Acq Chan and Acq Samples must be set or none of them
+    if (call_func[SET_ACQ_SAMPLES_ID].call && !call_func[SET_ACQ_CHAN_ID].call) {
+        fprintf(stderr, "%s: If --setsamples is set then --setchan must be too!\n", program_name);
+        return -1;
+    }
+    
+    if (!call_func[SET_ACQ_SAMPLES_ID].call && call_func[SET_ACQ_CHAN_ID].call) {
+        fprintf(stderr, "%s: If --setchan is set then --setsamples must be too!\n", program_name);
+        return -1;
+    }
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
@@ -524,7 +548,7 @@ int main(int argc, char *argv[])
 
     // Check the number of functions
     printf("\n"C"Server has %d Functions(s):\n", funcs->count);
-    int i;
+    unsigned int i;
     for(i = 0; i < funcs->count; ++i) {
         printf(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
                 funcs->list[i].id,
