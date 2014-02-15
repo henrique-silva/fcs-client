@@ -218,6 +218,12 @@ void print_usage (FILE* stream, int exit_code)
            "                                    [in number of ADC clock cycles]\n"
            "  -Q  --getadcclk                 Gets FPGA reference ADC clock [in Hertz]\n"
            "  -I  --getddsfreq                Gets FPGA DDS Frequency [in Hertz]\n"
+           "  -L  --getsamples                Gets FPGA number of samples of the next acquisition\n"
+           "  -C  --getchan                   Gets FPGA data channel of the next acquisition\n"
+           "  -B  --getcurve   <channel>\n    Gets FPGA curve data of channel <channel_number>\n"
+           "                                  [<channel> must be one of the following:\n"
+           "                                  0 -> ADC; 1-> TBT Amp; 2 -> TBT Pos\n"
+           "                                  3 -> FOFB Amp; 4-> FOFB Pos]\n"
            );
   exit (exit_code);
 }
@@ -247,10 +253,11 @@ static struct option long_options[] =
     {"getsw ",          no_argument,         NULL, 'J'},
     {"getdivclk",       no_argument,         NULL, 'D'},
     {"getphaseclk",     no_argument,         NULL, 'P'},
-    {"getadcclk",       required_argument,   NULL, 'Q'},
-    {"getddsfreq",      required_argument,   NULL, 'I'},
+    {"getadcclk",       no_argument,         NULL, 'Q'},
+    {"getddsfreq",      no_argument,         NULL, 'I'},
     {"getsamples",      no_argument,         NULL, 'L'},
     {"getchan",         no_argument,         NULL, 'C'},
+    {"getcurve",        required_argument,   NULL, 'B'},
     {NULL, 0, NULL, 0}
 };
 
@@ -336,6 +343,25 @@ static struct call_func_t call_func[END_ID] =
     {SET_ACQ_START_NAME         , 0, {0}, {0}}
 };
 
+#define GET_CURVE_ID            0
+#define GET_CURVE_NAME          "get_curve"
+#define END_CURVE_ID            1
+
+static struct call_func_t call_curve[END_CURVE_ID] = {
+    {GET_CURVE_NAME             , 0, {0}, {0}}
+};
+
+/* Print data composed of 16-bit signed data */
+int print_curve_16 (uint8_t *curve_data, uint32_t len)
+{
+    unsigned int i;
+    for (i = 0; i < len/2; ++i) {
+        printf ("%d\n", *((int16_t *)(curve_data + i*2)));
+    }
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     struct addrinfo hints, *servinfo, *p;
@@ -351,11 +377,12 @@ int main(int argc, char *argv[])
     uint32_t acq_samples_val = 0;
     int acq_chan_set = 0;
     uint32_t acq_chan_val = 0;
-    
+    uint32_t acq_curve_chan = 0;
+
     program_name = argv[0];
-    
+
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:l:c:tXYSJDPQILC", long_options, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:l:c:tXYSJDPQILCB:", long_options, NULL)) != -1)
     {
          // check to see if a single character or long option came through
          switch (ch)
@@ -478,6 +505,12 @@ int main(int argc, char *argv[])
               case 'C':
                   call_func[GET_ACQ_CHAN_ID].call = 1;
                   break;
+              // Get Curve
+              case 'B':
+                  call_curve[GET_CURVE_ID].call = 1;
+                  acq_curve_chan = (uint32_t) atoi(optarg);
+                  /**((uint32_t *)call_curve[GET_CURVE_ID].param_in) = (uint32_t) atoi(optarg);*/
+                  break;
               case ':':
               case '?':   /* The user specified an invalid option.  */
                    print_usage (stderr, 1);
@@ -486,7 +519,7 @@ int main(int argc, char *argv[])
               default:
                 fprintf(stderr, "%s: bad option\n", program_name);
                 print_usage(stderr, 1);
-         }    
+         }
     }
 
     if (hostname == NULL) {
@@ -499,12 +532,22 @@ int main(int argc, char *argv[])
         fprintf(stderr, "%s: If --setsamples or --setchan is set the other must be too!\n", program_name);
         return -1;
     }
-    
+
     // If we are here, we are good with the acquisition parameters
     if (acq_samples_set && acq_chan_set) {
         call_func[SET_ACQ_PARAM_ID].call = 1;
-        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].param_in) = acq_samples_val; 
-        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].param_in + sizeof(uint32_t)) = acq_chan_val; 
+        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].param_in) = acq_samples_val;
+        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].param_in + 1) = acq_chan_val;
+    }
+
+    // Check for acq_curve_chan bounds
+    if (call_curve[GET_CURVE_ID].call) {
+        if (acq_curve_chan > 4) {//0 -> adc, tbtamp, tbtpos, fofbamp, 4-> fofbpos
+            fprintf(stderr, "%s: Specified curve ID invalid. It must be between 0 and 4!\n", program_name);
+            return -1;
+        }
+
+        *((uint32_t *)call_curve[GET_CURVE_ID].param_in) = acq_curve_chan;
     }
 
     // Socket specific part
@@ -572,7 +615,7 @@ int main(int argc, char *argv[])
     struct bsmp_func_info_list *funcs;
     TRY("funcs_list", bsmp_get_funcs_list(client, &funcs));
 
-    // Check the number of functions
+    // Get list of functions
     printf("\n"C"Server has %d Functions(s):\n", funcs->count);
     unsigned int i;
     for(i = 0; i < funcs->count; ++i) {
@@ -582,10 +625,22 @@ int main(int argc, char *argv[])
                 funcs->list[i].output_size);
     }
 
-    // Call all the functions the user specified with its parameters   
+    // Get list of curves
+    struct bsmp_curve_info_list *curves;
+    TRY("curves_list", bsmp_get_curves_list(client, &curves));
+
+    printf("\n"C"Server has %d Curve(s):\n", curves->count);
+    for(i = 0; i < curves->count; ++i)
+        printf(C" ID[%d] BLOCKS[%3d (%5d bytes each)] %s\n",
+                curves->list[i].id,
+                curves->list[i].nblocks,
+                curves->list[i].block_size,
+                curves->list[i].writable ? "WRITABLE" : "READ-ONLY");
+
+    // Call all the functions the user specified with its parameters
     struct bsmp_func_info *func;
     uint8_t func_error;
-    
+
     for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
         if (call_func[i].call) {
             func = &funcs->list[i];
@@ -598,6 +653,27 @@ int main(int argc, char *argv[])
     for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
         if (call_func[i].call /*&& *((uint32_t *)call_func[i].param_out) != 0*/) {
             printf ("%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].param_out));
+        }
+    }
+
+    // Call specified curves
+    struct bsmp_curve_info *curve;
+    uint8_t *curve_data;
+    uint32_t curve_data_len;
+    for (i = 0; i < ARRAY_SIZE(call_curve); ++i) {
+        if (call_curve[i].call) {
+            // Requesting curve
+            printf(C"Requesting curve #%d\n", i);
+
+            curve = &curves->list[i];
+            curve_data = malloc(curve->block_size*curve->nblocks);
+            /* POtential failure can happen here if large buffer is requested!! */
+            TRY("malloc curve data", !curve_data);
+            TRY((call_curve[i].name), bsmp_read_curve(client, curve,
+                                            curve_data, &curve_data_len));
+
+            printf(C" Got %d bytes of curve\n", curve_data_len);
+            print_curve_16 (curve_data, curve_data_len);
         }
     }
 
