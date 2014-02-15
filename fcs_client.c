@@ -249,6 +249,8 @@ static struct option long_options[] =
     {"getphaseclk",     no_argument,         NULL, 'P'},
     {"getadcclk",       required_argument,   NULL, 'Q'},
     {"getddsfreq",      required_argument,   NULL, 'I'},
+    {"getsamples",      no_argument,         NULL, 'L'},
+    {"getchan",         no_argument,         NULL, 'C'},
     {NULL, 0, NULL, 0}
 };
 
@@ -256,7 +258,7 @@ struct call_func_t {
     const char *name;
     int call;
     uint8_t param_in[sizeof(uint32_t)*2]; // 2 32-bits variables
-    uint8_t param_out[sizeof(uint32_t)]; // 1 32-bit variable
+    uint8_t param_out[sizeof(uint32_t)]; // 1 32-bits variable
 };
 
 #define BLINK_FUNC_ID           0
@@ -297,13 +299,15 @@ struct call_func_t {
 #define SET_DDSFREQ_NAME        "set_dds_freq"
 #define GET_DDSFREQ_ID          18
 #define GET_DDSFREQ_NAME        "get_dds_freq"
-#define SET_ACQ_SAMPLES_ID      19
-#define SET_ACQ_SAMPLES_NAME    "set_acq_samples"
-#define SET_ACQ_CHAN_ID         20
-#define SET_ACQ_CHAN_NAME       "set_acq_chan"
-#define SET_ACQ_START_ID        21
+#define SET_ACQ_PARAM_ID        19
+#define SET_ACQ_PARAM_NAME      "set_acq_param"
+#define GET_ACQ_SAMPLES_ID      20
+#define GET_ACQ_SAMPLES_NAME    "get_acq_samples"
+#define GET_ACQ_CHAN_ID         21
+#define GET_ACQ_CHAN_NAME       "get_acq_chan"
+#define SET_ACQ_START_ID        22
 #define SET_ACQ_START_NAME      "set_acq_start"
-#define END_ID                  22
+#define END_ID                  23
 
 static struct call_func_t call_func[END_ID] =
 {
@@ -326,8 +330,9 @@ static struct call_func_t call_func[END_ID] =
     {GET_ADCCLK_NAME            , 0, {0}, {0}},
     {SET_DDSFREQ_NAME           , 0, {0}, {0}},
     {GET_DDSFREQ_NAME           , 0, {0}, {0}},
-    {SET_ACQ_SAMPLES_NAME       , 0, {0}, {0}},
-    {SET_ACQ_CHAN_NAME          , 0, {0}, {0}},
+    {SET_ACQ_PARAM_NAME         , 0, {0}, {0}},
+    {GET_ACQ_SAMPLES_NAME       , 0, {0}, {0}},
+    {GET_ACQ_CHAN_NAME          , 0, {0}, {0}},
     {SET_ACQ_START_NAME         , 0, {0}, {0}}
 };
 
@@ -340,11 +345,17 @@ int main(int argc, char *argv[])
 
     int verbose = 0;
     int ch;
+
+    // Acquitision parameters check
+    int acq_samples_set = 0;
+    uint32_t acq_samples_val = 0;
+    int acq_chan_set = 0;
+    uint32_t acq_chan_val = 0;
     
     program_name = argv[0];
     
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:l:c:tXYSJDPQI", long_options, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:l:c:tXYSJDPQILC", long_options, NULL)) != -1)
     {
          // check to see if a single character or long option came through
          switch (ch)
@@ -411,13 +422,17 @@ int main(int argc, char *argv[])
                   break;
                // Set Acq Samples
               case 'l':
-                  call_func[SET_ACQ_SAMPLES_ID].call = 1;
-                  *((uint32_t *)call_func[SET_ACQ_SAMPLES_ID].param_in) = (uint32_t) atoi(optarg);
+                  //call_func[SET_ACQ_SAMPLES_ID].call = 1;
+                  //*((uint32_t *)call_func[SET_ACQ_SAMPLES_ID].param_in) = (uint32_t) atoi(optarg);
+                  acq_samples_set = 1;
+                  acq_samples_val = (uint32_t) atoi(optarg);
                   break;
                // Set Acq Chan
               case 'c':
-                  call_func[SET_ACQ_CHAN_ID].call = 1;
-                  *((uint32_t *)call_func[SET_ACQ_CHAN_ID].param_in) = (uint32_t) atoi(optarg);
+                  //call_func[SET_ACQ_CHAN_ID].call = 1;
+                  //*((uint32_t *)call_func[SET_ACQ_CHAN_ID].param_in) = (uint32_t) atoi(optarg);
+                  acq_chan_set = 1;
+                  acq_chan_val = (uint32_t) atoi(optarg);
                   break;
                // Set Acq Start
               case 't':
@@ -455,6 +470,14 @@ int main(int argc, char *argv[])
               case 'I':
                   call_func[GET_DDSFREQ_ID].call = 1;
                   break;
+              // Get Acq Samples
+              case 'L':
+                  call_func[GET_ACQ_SAMPLES_ID].call = 1;
+                  break;
+              // Get Acq Chan
+              case 'C':
+                  call_func[GET_ACQ_CHAN_ID].call = 1;
+                  break;
               case ':':
               case '?':   /* The user specified an invalid option.  */
                    print_usage (stderr, 1);
@@ -472,16 +495,19 @@ int main(int argc, char *argv[])
     }
 
     // Both Acq Chan and Acq Samples must be set or none of them
-    if (call_func[SET_ACQ_SAMPLES_ID].call && !call_func[SET_ACQ_CHAN_ID].call) {
-        fprintf(stderr, "%s: If --setsamples is set then --setchan must be too!\n", program_name);
+    if ((acq_samples_set && !acq_chan_set) || (!acq_samples_set && acq_chan_set)) {
+        fprintf(stderr, "%s: If --setsamples or --setchan is set the other must be too!\n", program_name);
         return -1;
     }
     
-    if (!call_func[SET_ACQ_SAMPLES_ID].call && call_func[SET_ACQ_CHAN_ID].call) {
-        fprintf(stderr, "%s: If --setchan is set then --setsamples must be too!\n", program_name);
-        return -1;
+    // If we are here, we are good with the acquisition parameters
+    if (acq_samples_set && acq_chan_set) {
+        call_func[SET_ACQ_PARAM_ID].call = 1;
+        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].param_in) = acq_samples_val; 
+        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].param_in + sizeof(uint32_t)) = acq_chan_val; 
     }
 
+    // Socket specific part
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -570,7 +596,7 @@ int main(int argc, char *argv[])
 
     // Show all results
     for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
-        if (call_func[i].call && *((uint32_t *)call_func[i].param_out) != 0) {
+        if (call_func[i].call /*&& *((uint32_t *)call_func[i].param_out) != 0*/) {
             printf ("%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].param_out));
         }
     }
