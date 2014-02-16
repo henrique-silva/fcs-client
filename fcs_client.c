@@ -343,12 +343,35 @@ static struct call_func_t call_func[END_ID] =
     {SET_ACQ_START_NAME         , 0, {0}, {0}}
 };
 
-#define GET_CURVE_ID            0
-#define GET_CURVE_NAME          "get_curve"
-#define END_CURVE_ID            1
+#define ANY_CURVE_TYPE_ID        0
+#define ANY_CURVE_TYPE_NAME      "any_type_curve"
+#define END_CURVE_TYPE_ID        1
+
+static struct call_func_t call_curve_type[END_CURVE_TYPE_ID] = {
+    {ANY_CURVE_TYPE_NAME        , 0, {0}, {0}}
+};
+
+// We have 5 curves declared in server:
+// 0 -> ADC, 1-> TBTAMP, 2 -> TBTPOS,
+// 3 -> FOFBAMP, 4 -> FOFBPOS
+#define CURVE_ADC_ID            0
+#define CURVE_ADC_NAME          "adc_curve"
+#define CURVE_TBTAMP_ID         1
+#define CURVE_TBTAMP_NAME       "tbtamp_curve"
+#define CURVE_TBTPOS_ID         2
+#define CURVE_TBTPOS_NAME       "tbtpos_curve"
+#define CURVE_FOFBAMP_ID        3
+#define CURVE_FOFBAMP_NAME      "fofbamp_curve"
+#define CURVE_FOFMPOS_ID        4
+#define CURVE_FOFBPOS_NAME      "fofbpos_curve"
+#define END_CURVE_ID            5
 
 static struct call_func_t call_curve[END_CURVE_ID] = {
-    {GET_CURVE_NAME             , 0, {0}, {0}}
+    {CURVE_ADC_NAME             , 0, {0}, {0}},
+    {CURVE_TBTAMP_NAME          , 0, {0}, {0}},
+    {CURVE_TBTPOS_NAME          , 0, {0}, {0}},
+    {CURVE_FOFBAMP_NAME         , 0, {0}, {0}},
+    {CURVE_FOFBPOS_NAME         , 0, {0}, {0}}
 };
 
 /* Print data composed of 16-bit signed data */
@@ -356,7 +379,18 @@ int print_curve_16 (uint8_t *curve_data, uint32_t len)
 {
     unsigned int i;
     for (i = 0; i < len/2; ++i) {
-        printf ("%d\n", *((int16_t *)(curve_data + i*2)));
+        printf ("%d\n", *((int16_t *)((uint8_t *)curve_data + i*2)));
+    }
+
+    return 0;
+}
+
+/* Print data composed of 32-bit signed data */
+int print_curve_32 (uint8_t *curve_data, uint32_t len)
+{
+    unsigned int i;
+    for (i = 0; i < len/4; ++i) {
+        printf ("%d\n", *((int32_t *)((uint8_t *)curve_data + i*4)));
     }
 
     return 0;
@@ -507,7 +541,7 @@ int main(int argc, char *argv[])
                   break;
               // Get Curve
               case 'B':
-                  call_curve[GET_CURVE_ID].call = 1;
+                  call_curve_type[ANY_CURVE_TYPE_ID].call = 1;
                   acq_curve_chan = (uint32_t) atoi(optarg);
                   /**((uint32_t *)call_curve[GET_CURVE_ID].param_in) = (uint32_t) atoi(optarg);*/
                   break;
@@ -541,13 +575,13 @@ int main(int argc, char *argv[])
     }
 
     // Check for acq_curve_chan bounds
-    if (call_curve[GET_CURVE_ID].call) {
-        if (acq_curve_chan > 4) {//0 -> adc, tbtamp, tbtpos, fofbamp, 4-> fofbpos
-            fprintf(stderr, "%s: Specified curve ID invalid. It must be between 0 and 4!\n", program_name);
+    if (call_curve_type[ANY_CURVE_TYPE_ID].call) {
+        if (acq_curve_chan > END_CURVE_ID-1) {//0 -> adc, tbtamp, tbtpos, fofbamp, 4-> fofbpos
+            fprintf(stderr, "%s: Specified curve ID invalid. It must be between %d and %d!\n", program_name, CURVE_ADC_ID, END_CURVE_ID-1);
             return -1;
         }
 
-        *((uint32_t *)call_curve[GET_CURVE_ID].param_in) = acq_curve_chan;
+        call_curve[acq_curve_chan].call = 1;
     }
 
     // Socket specific part
@@ -658,7 +692,7 @@ int main(int argc, char *argv[])
 
     // Call specified curves
     struct bsmp_curve_info *curve;
-    uint8_t *curve_data;
+    uint8_t *curve_data = NULL;
     uint32_t curve_data_len;
     for (i = 0; i < ARRAY_SIZE(call_curve); ++i) {
         if (call_curve[i].call) {
@@ -673,13 +707,18 @@ int main(int argc, char *argv[])
                                             curve_data, &curve_data_len));
 
             printf(C" Got %d bytes of curve\n", curve_data_len);
-            print_curve_16 (curve_data, curve_data_len);
+            if (i == CURVE_ADC_ID)
+                print_curve_16 (curve_data, curve_data_len);
+            else
+                print_curve_32 (curve_data, curve_data_len);
+
         }
     }
 
     close(sockfd);
 
 exit_destroy:
+    free (curve_data);
     bsmp_client_destroy(client);
     puts("BSMP deallocated");
 exit_close:
