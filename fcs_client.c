@@ -224,6 +224,12 @@ void print_usage (FILE* stream, int exit_code)
            "                                  [<channel> must be one of the following:\n"
            "                                  0 -> ADC; 1-> TBT Amp; 2 -> TBT Pos\n"
            "                                  3 -> FOFB Amp; 4-> FOFB Pos]\n"
+           "  -E  --getmonitamp               Gets FPGA Monitoring Ampltitude Sample\n"
+           "                                  This consists of the following:\n"
+           "                                  Monit. Amp 0, Amp 1, Amp 2, Amp 3\n"
+           "  -F  --getmonitpos               Gets FPGA Monitoring Position Sample\n"
+           "                                  This consists of the following:\n"
+           "                                  Monit. X, Y, Q, Sum\n"
            );
   exit (exit_code);
 }
@@ -258,6 +264,8 @@ static struct option long_options[] =
     {"getsamples",      no_argument,         NULL, 'L'},
     {"getchan",         no_argument,         NULL, 'C'},
     {"getcurve",        required_argument,   NULL, 'B'},
+    {"getmonitamp",     no_argument,         NULL, 'E'},
+    {"getmonitpos",     no_argument,         NULL, 'F'},
     {NULL, 0, NULL, 0}
 };
 
@@ -343,6 +351,18 @@ static struct call_func_t call_func[END_ID] =
     {SET_ACQ_START_NAME         , 0, {0}, {0}}
 };
 
+#define GET_MONIT_AMP_ID        0
+#define GET_MONIT_AMP_NAME      "get_monit_amp"
+#define GET_MONIT_POS_ID        1
+#define GET_MONIT_POS_NAME      "get_monit_pos"
+#define END_MONIT_ID            2
+
+static struct call_func_t call_curve_monit[END_MONIT_ID] =
+{
+    {GET_MONIT_AMP_NAME         , 0, {0}, {0}},
+    {GET_MONIT_POS_NAME         , 0, {0}, {0}}
+};
+
 #define ANY_CURVE_TYPE_ID        0
 #define ANY_CURVE_TYPE_NAME      "any_type_curve"
 #define END_CURVE_TYPE_ID        1
@@ -416,7 +436,7 @@ int main(int argc, char *argv[])
     program_name = argv[0];
 
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:l:c:tXYSJDPQILCB:", long_options, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:l:c:tXYSJDPQILCB:EF", long_options, NULL)) != -1)
     {
          // check to see if a single character or long option came through
          switch (ch)
@@ -544,6 +564,13 @@ int main(int argc, char *argv[])
                   call_curve_type[ANY_CURVE_TYPE_ID].call = 1;
                   acq_curve_chan = (uint32_t) atoi(optarg);
                   /**((uint32_t *)call_curve[GET_CURVE_ID].param_in) = (uint32_t) atoi(optarg);*/
+                  break;
+              // Get Monit. Amp
+              case 'E':
+                  call_curve_monit[GET_MONIT_AMP_ID].call = 1;
+                  break;
+              case 'F':
+                  call_curve_monit[GET_MONIT_POS_ID].call = 1;
                   break;
               case ':':
               case '?':   /* The user specified an invalid option.  */
@@ -712,6 +739,23 @@ int main(int argc, char *argv[])
             else
                 print_curve_32 (curve_data, curve_data_len);
 
+        }
+    }
+
+    free (curve_data);
+
+    unsigned int j = 0;
+    // poll to infinity the Monit. Functions if called
+    for (i = 0; i < ARRAY_SIZE(call_curve_monit); ++i) {
+        if (call_curve_monit[i].call) {
+            printf(C"Requesting curve #%d\n", END_CURVE_ID+i);
+            curve = &curves->list[END_CURVE_ID+i];// These are just after the regular functions
+            curve_data = malloc(curve->block_size*curve->nblocks);
+            for(j = 0; j < 4096; ++j) { // ????? FIXME
+                TRY((call_curve_monit[i].name), bsmp_read_curve(client, curve,
+                                            curve_data, &curve_data_len));
+                print_curve_32 (curve_data, curve_data_len);
+            }
         }
     }
 
