@@ -45,7 +45,7 @@ static void sigint_handler (int sig, siginfo_t *siginfo, void *context)
     _interrupted = 1;
 }
 
-#define PLOT_BUFFER_LEN 16 // in 32-bit words
+#define PLOT_BUFFER_LEN 1024 // in 32-bit words
 #define NUM_CHANNELS 4
 typedef struct _plot_values_monit_double_t {
     double ch0[PLOT_BUFFER_LEN];
@@ -434,12 +434,20 @@ static struct call_func_t call_curve[END_CURVE_ID] = {
     {CURVE_FOFBPOS_NAME         , 0, {0}, {0}}
 };
 
+#define NUM_CHANNELS 4
+#define SIZE_16_BYTES sizeof(uint16_t)
+#define SIZE_32_BYTES sizeof(uint32_t)
+
 /* Print data composed of 16-bit signed data */
 int print_curve_16 (uint8_t *curve_data, uint32_t len)
 {
     unsigned int i;
-    for (i = 0; i < len/2; ++i) {
-        printf ("%d\n", *((int16_t *)((uint8_t *)curve_data + i*2)));
+    for (i = 0; i < len/(SIZE_16_BYTES*NUM_CHANNELS); ++i) {
+        printf ("%d %d %d %d\n\r",
+                *((int16_t *)curve_data + i*NUM_CHANNELS),
+                *((int16_t *)curve_data + i*NUM_CHANNELS+1),
+                *((int16_t *)curve_data + i*NUM_CHANNELS+2),
+                *((int16_t *)curve_data + i*NUM_CHANNELS+3));
     }
 
     return 0;
@@ -449,8 +457,15 @@ int print_curve_16 (uint8_t *curve_data, uint32_t len)
 int print_curve_32 (uint8_t *curve_data, uint32_t len)
 {
     unsigned int i;
-    for (i = 0; i < len/4; ++i) {
-        printf ("%d\n", *((int32_t *)((uint8_t *)curve_data + i*4)));
+    //for (i = 0; i < len/4; ++i) {
+    //    printf ("%d\n", *((int32_t *)((uint8_t *)curve_data + i*4)));
+    //}
+    for (i = 0; i < len/(SIZE_32_BYTES*NUM_CHANNELS); ++i) {
+        printf ("%d %d %d %d\n\r",
+                *((int32_t *)curve_data + i*NUM_CHANNELS),
+                *((int32_t *)curve_data + i*NUM_CHANNELS+1),
+                *((int32_t *)curve_data + i*NUM_CHANNELS+2),
+                *((int32_t *)curve_data + i*NUM_CHANNELS+3));
     }
 
     return 0;
@@ -711,7 +726,7 @@ int main(int argc, char *argv[])
 
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
             s, sizeof s);
-    printf("client: connecting to %s\n", s);
+    DEBUGP("client: connecting to %s\n", s);
 
     freeaddrinfo(servinfo); // all done with this structure
 
@@ -736,10 +751,10 @@ int main(int argc, char *argv[])
     TRY("funcs_list", bsmp_get_funcs_list(client, &funcs));
 
     // Get list of functions
-    printf("\n"C"Server has %d Functions(s):\n", funcs->count);
+    DEBUGP("\n"C"Server has %d Functions(s):\n", funcs->count);
     unsigned int i;
     for(i = 0; i < funcs->count; ++i) {
-        printf(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
+        DEBUGP(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
                 funcs->list[i].id,
                 funcs->list[i].input_size,
                 funcs->list[i].output_size);
@@ -749,9 +764,9 @@ int main(int argc, char *argv[])
     struct bsmp_curve_info_list *curves;
     TRY("curves_list", bsmp_get_curves_list(client, &curves));
 
-    printf("\n"C"Server has %d Curve(s):\n", curves->count);
+    DEBUGP("\n"C"Server has %d Curve(s):\n", curves->count);
     for(i = 0; i < curves->count; ++i)
-        printf(C" ID[%d] BLOCKS[%3d (%5d bytes each)] %s\n",
+        DEBUGP(C" ID[%d] BLOCKS[%3d (%5d bytes each)] %s\n",
                 curves->list[i].id,
                 curves->list[i].nblocks,
                 curves->list[i].block_size,
@@ -783,7 +798,7 @@ int main(int argc, char *argv[])
     for (i = 0; i < ARRAY_SIZE(call_curve); ++i) {
         if (call_curve[i].call) {
             // Requesting curve
-            printf(C"Requesting curve #%d\n", i);
+            DEBUGP(C"Requesting curve #%d\n", i);
 
             curve = &curves->list[i];
             curve_data = malloc(curve->block_size*curve->nblocks);
@@ -792,7 +807,7 @@ int main(int argc, char *argv[])
             TRY((call_curve[i].name), bsmp_read_curve(client, curve,
                         curve_data, &curve_data_len));
 
-            printf(C" Got %d bytes of curve\n", curve_data_len);
+            DEBUGP(C" Got %d bytes of curve\n", curve_data_len);
             if (i == CURVE_ADC_ID)
                 print_curve_16 (curve_data, curve_data_len);
             else
@@ -802,52 +817,56 @@ int main(int argc, char *argv[])
     }
 
     // Gnuplot specifics
-    gnuplot_ctrl *h1;
-    h1 = gnuplot_init();
-    gnuplot_setstyle(h1, "lines") ;
+    //gnuplot_ctrl *h1;
+    //h1 = gnuplot_init();
+    //gnuplot_setstyle(h1, "lines") ;
 
     // poll to infinity the Monit. Functions if called
     for (i = 0; i < ARRAY_SIZE(call_curve_monit); ++i) {
         if (call_curve_monit[i].call) {
-            printf(C"Requesting curve #%d\n", END_CURVE_ID+i);
+            DEBUGP(C"Requesting curve #%d\n", END_CURVE_ID+i);
             curve = &curves->list[END_CURVE_ID+i];// These are just after the regular functions
             //curve_data = malloc(curve->block_size*curve->nblocks);
             while (!_interrupted) {
                 unsigned int j;
                 char curve_name[20];
-                for (j = 0; j < PLOT_BUFFER_LEN; ++j) { // in 4 * 32-bit words
+                for (j = 0; j < PLOT_BUFFER_LEN && !_interrupted; ++j) { // in 4 * 32-bit words
                     TRY((call_curve_monit[i].name), bsmp_read_curve(client, curve,
                                 (uint8_t *)(pval_monit_uint32 + j), &curve_data_len));
-                    pval_monit_double.ch0[j] = (double)
-                        pval_monit_uint32[j].ch0;
-                    pval_monit_double.ch1[j] = (double)
-                        pval_monit_uint32[j].ch1;
-                    pval_monit_double.ch2[j] = (double)
-                        pval_monit_uint32[j].ch2;
-                    pval_monit_double.ch3[j] = (double)
-                        pval_monit_uint32[j].ch3;
 
-                    // Can this update rate cause problems for gnuplot?
-                    usleep (100000); /* 10 Hz update */
-                    //usleep (2000000);
+                    // Output Curve to stdout
+                    printf ("%d %d %d %d\n\r", pval_monit_uint32[j].ch0,
+                                                pval_monit_uint32[j].ch1,
+                                                pval_monit_uint32[j].ch2,
+                                                pval_monit_uint32[j].ch3);
+                    //printf ("%d %d\n\r", pval_monit_uint32[j].ch0,
+                    //                            pval_monit_uint32[j].ch1);
+                    fflush(stdout);
 
-                    gnuplot_resetplot(h1);
+                    ////pval_monit_double.ch0[j] = (double)
+                    ////    pval_monit_uint32[j].ch0;
+                    ////pval_monit_double.ch1[j] = (double)
+                    ////    pval_monit_uint32[j].ch1;
+                    ////pval_monit_double.ch2[j] = (double)
+                    ////    pval_monit_uint32[j].ch2;
+                    ////pval_monit_double.ch3[j] = (double)
+                    ////    pval_monit_uint32[j].ch3;
 
-                    //gnuplot_cmd(h1, "set multiplot") ;
-                    gnuplot_cmd(h1, "set style line 5 lt rgb \"cyan\" lw 3 pt 6") ;
-                    plot_curve_32 (h1, pval_monit_double.ch0, j+1, monit_str_idx[i].str_idx[0]);
-                    gnuplot_cmd(h1, "set style line 5 lt rgb \"red\" lw 3 pt 6") ;
-                    plot_curve_32 (h1, pval_monit_double.ch1, j+1, monit_str_idx[i].str_idx[1]);
-                    gnuplot_cmd(h1, "set style line 5 lt rgb \"green\" lw 3 pt 6") ;
-                    plot_curve_32 (h1, pval_monit_double.ch2, j+1, monit_str_idx[i].str_idx[2]);
-                    gnuplot_cmd(h1, "set style line 5 lt rgb \"black\" lw 3 pt 6") ;
-                    plot_curve_32 (h1, pval_monit_double.ch3, j+1, monit_str_idx[i].str_idx[3]);
-                    //gnuplot_cmd(h1, "unset multiplot") ;
-                    //gnuplot_resetplot(h1);
-                    //printf ("Press any key to exit...\n");
-                    //getchar();
-                    //gnuplot_cmd(h1, "unset multiplot") ;
-                    //gnuplot_resetplot(h1);
+                    ////// Can this update rate cause problems for gnuplot?
+                    usleep (50000); /* 10 Hz update */
+
+                    //////gnuplot_cmd(h1, "set multiplot") ;
+                    ////gnuplot_resetplot(h1);
+
+                    ////gnuplot_cmd(h1, "set style line 5 lt rgb \"cyan\" lw 3 pt 6") ;
+                    ////plot_curve_32 (h1, pval_monit_double.ch0, j+1, monit_str_idx[i].str_idx[0]);
+                    ////gnuplot_cmd(h1, "set style line 5 lt rgb \"red\" lw 3 pt 6") ;
+                    ////plot_curve_32 (h1, pval_monit_double.ch1, j+1, monit_str_idx[i].str_idx[1]);
+                    ////gnuplot_cmd(h1, "set style line 5 lt rgb \"green\" lw 3 pt 6") ;
+                    ////plot_curve_32 (h1, pval_monit_double.ch2, j+1, monit_str_idx[i].str_idx[2]);
+                    ////gnuplot_cmd(h1, "set style line 5 lt rgb \"magenta\" lw 3 pt 6") ;
+                    ////plot_curve_32 (h1, pval_monit_double.ch3, j+1, monit_str_idx[i].str_idx[3]);
+                    ////gnuplot_cmd(h1, "unset multiplot") ;
                 }
             }
         }
@@ -856,13 +875,13 @@ int main(int argc, char *argv[])
     close(sockfd);
 
 exit_destroy:
-    gnuplot_close(h1);
+    //gnuplot_close(h1);
     free (curve_data);
     bsmp_client_destroy(client);
-    puts("BSMP deallocated");
+    DEBUGP("BSMP deallocated");
 exit_close:
     close(sockfd);
-    puts("Socket closed");
+    DEBUGP("Socket closed");
     free (hostname);
     return 0;
 }
