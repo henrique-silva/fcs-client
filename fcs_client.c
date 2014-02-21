@@ -33,6 +33,7 @@
 
 #define PORT "8080" // the port client will be connecting to
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define MONIT_POLL_RATE 10000 //usec
 
 const char* program_name;
 char *hostname = NULL;
@@ -827,7 +828,7 @@ int main(int argc, char *argv[])
             DEBUGP(C"Requesting curve #%d\n", END_CURVE_ID+i);
             curve = &curves->list[END_CURVE_ID+i];// These are just after the regular functions
             //curve_data = malloc(curve->block_size*curve->nblocks);
-            while (!_interrupted) {
+            //while (!_interrupted) {
                 unsigned int j;
                 char curve_name[20];
                 for (j = 0; j < PLOT_BUFFER_LEN && !_interrupted; ++j) { // in 4 * 32-bit words
@@ -839,8 +840,7 @@ int main(int argc, char *argv[])
                                                 pval_monit_uint32[j].ch1,
                                                 pval_monit_uint32[j].ch2,
                                                 pval_monit_uint32[j].ch3);
-                    //printf ("%d %d\n\r", pval_monit_uint32[j].ch0,
-                    //                            pval_monit_uint32[j].ch1);
+                    //printf ("%d\n\r", pval_monit_uint32[j].ch0);
                     fflush(stdout);
 
                     ////pval_monit_double.ch0[j] = (double)
@@ -853,7 +853,7 @@ int main(int argc, char *argv[])
                     ////    pval_monit_uint32[j].ch3;
 
                     ////// Can this update rate cause problems for gnuplot?
-                    usleep (50000); /* 10 Hz update */
+                    usleep (MONIT_POLL_RATE); /* 10 Hz update */
 
                     //////gnuplot_cmd(h1, "set multiplot") ;
                     ////gnuplot_resetplot(h1);
@@ -868,7 +868,7 @@ int main(int argc, char *argv[])
                     ////plot_curve_32 (h1, pval_monit_double.ch3, j+1, monit_str_idx[i].str_idx[3]);
                     ////gnuplot_cmd(h1, "unset multiplot") ;
                 }
-            }
+            //}
         }
     }
 

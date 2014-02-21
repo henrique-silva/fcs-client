@@ -2,11 +2,11 @@
 
 ./fcs_client -E -o localhost | \
 	feedgnuplot --lines  \
-	--stream 0.5 \
+	--stream 0.1 \
 	--xlen 1000 \
-	--title 'FOFB Amplitude Data' \
-	--ylabel 'Amplitude Data [arb. units]' 
-	--xlabel 'Samples'
+	--title 'Monitoring Amplitude Data' \
+	--ylabel 'Amplitude Data [arb. units]' \
+	--xlabel 'Samples' \
 	--legend 0 'A' \
 	--legend 1 'B' \
 	--legend 2 'C' \
