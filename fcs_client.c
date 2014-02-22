@@ -31,18 +31,23 @@
         }\
     }while(0)
 
-#define PORT "8080" // the port client will be connecting to
+#define PORT "8080" // the FPGA port client will be connecting to
+#define FE_PORT "6191" // the RFFE port client will be connecting to
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define MONIT_POLL_RATE 10000 //usec
 
 const char* program_name;
 char *hostname = NULL;
+char *fe_hostname = NULL;
 
 sig_atomic_t _interrupted = 0;
 
 // C^c signal handler
 static void sigint_handler (int sig, siginfo_t *siginfo, void *context)
 {
+    (void) sig;
+    (void) siginfo;
+    (void) context;
     _interrupted = 1;
 }
 
@@ -66,25 +71,30 @@ typedef struct _plot_values_monit_uint32_t {
 plot_values_monit_uint32_t pval_monit_uint32[PLOT_BUFFER_LEN];
 plot_values_monit_double_t pval_monit_double;
 
-/* Our socket */
+/* Our FPGA socket */
 int sockfd;
+/* Our FE socket */
+int fe_sockfd;
 
-/* Our send/receive packet */
+/* Our send/receive packet for the FPGA */
 recv_pkt_t recv_pkt;
 send_pkt_t send_pkt;
+/* Our send/receive packet for the FE */
+recv_pkt_t fe_recv_pkt;
+send_pkt_t fe_send_pkt;
 
 /***************************************************************/
 /********************** Utility functions **********************/
 /***************************************************************/
 
-int sendall(uint8_t *buf, uint32_t *len)
+int __sendall(int fd, uint8_t *buf, uint32_t *len)
 {
     uint32_t total = 0;        // how many bytes we've sent
     uint32_t bytesleft = *len; // how many we have left to send
     int32_t n;
 
     while(total < *len) {
-        n = send(sockfd, (char *)buf+total, bytesleft, 0);
+        n = send(fd, (char *)buf+total, bytesleft, 0);
         if (n == -1) { break; }
         total += n;
         bytesleft -= n;
@@ -95,14 +105,14 @@ int sendall(uint8_t *buf, uint32_t *len)
     return n==-1?-1:0; // return -1 on failure, 0 on success
 }
 
-int recvall(uint8_t *buf, uint32_t *len)
+int __recvall(int fd, uint8_t *buf, uint32_t *len)
 {
     uint32_t total = 0;        // how many bytes we've recv
     uint32_t bytesleft = *len; // how many we have left to recv
     int32_t n;
 
     while(total < *len) {
-        n = recv(sockfd, (char *)buf+total, bytesleft, 0);
+        n = recv(fd, (char *)buf+total, bytesleft, 0);
         if (n == -1) { break; }
         total += n;
         bytesleft -= n;
@@ -141,10 +151,14 @@ void print_packet (char* pre, uint8_t *data, uint32_t size)
     }
     else
         printf("%d bytes ]\n", size);
+#else
+    (void) pre;
+    (void) data;
+    (void) size;
 #endif
 }
 
-int bpm_send(uint8_t *data, uint32_t *count)
+int __bpm_send(int fd, uint8_t *data, uint32_t *count)
 {
     uint8_t  packet[BSMP_MAX_MESSAGE];
     uint32_t packet_size = *count;
@@ -152,9 +166,11 @@ int bpm_send(uint8_t *data, uint32_t *count)
 
     memcpy (packet, data, *count);
 
-    print_packet("SEND", packet, packet_size);
+    print_packet("SEND()", packet, packet_size);
 
-    int ret = sendall(packet, &len);
+    int ret = __sendall(fd, packet, &len);
+    DEBUGP ("bpm_send(%d): %d bytes sent!\n", fd, len);
+
     if(len != packet_size) {
         if(ret < 0)
             perror("send");
@@ -164,35 +180,35 @@ int bpm_send(uint8_t *data, uint32_t *count)
     return 0;
 }
 
-int bpm_recv(uint8_t *data, uint32_t *count)
+int __bpm_recv(int fd, uint8_t *data, uint32_t *count)
 {
     uint8_t packet[PACKET_SIZE] = {0};
     uint32_t packet_size;
     uint32_t len = PACKET_HEADER;
 
-    int ret = recvall(packet, &len);
+    int ret = __recvall(fd, packet, &len);
     if(len != PACKET_HEADER) {
         if(ret < 0)
             perror("recv");
         return -1;
     }
 
-    DEBUGP ("bpm_recv: received %d bytes (header)!\n", PACKET_HEADER);
+    DEBUGP ("bpm_recv(%d): received %d bytes (header)!\n", fd, PACKET_HEADER);
 
     //uint32_t remaining = (packet[2] << 8) + packet[3];
     uint32_t remaining = (packet[1] << 8) + packet[2];
     len = remaining;
 
-    DEBUGP ("bpm_recv: %d bytes to recv!\n", remaining);
+    DEBUGP ("bpm_recv(%d): %d bytes to recv!\n", fd, remaining);
 
-    ret = recvall(packet + PACKET_HEADER, &len);
+    ret = __recvall(fd, packet + PACKET_HEADER, &len);
     if(len != remaining) {
         if(ret < 0)
             perror("recv");
         return -1;
     }
 
-    DEBUGP("bpm_recv: received payload!\n");
+    DEBUGP("bpm_recv(%d) received payload!\n", fd);
 
     packet_size = PACKET_HEADER + remaining;
 
@@ -202,6 +218,30 @@ int bpm_recv(uint8_t *data, uint32_t *count)
     memcpy(data, packet, *count);
 
     return 0;
+}
+
+/***************************************************************/
+/**********************      Wrappers       *******************/
+/***************************************************************/
+
+int bpm_fpga_send(uint8_t *data, uint32_t *count)
+{
+    return __bpm_send(sockfd, data, count); // sockfd is the FPGA socket
+}
+
+int bpm_fpga_recv(uint8_t *data, uint32_t *count)
+{
+    return __bpm_recv(sockfd, data, count); // sockfd is the FPGA socket
+}
+
+int bpm_fe_send(uint8_t *data, uint32_t *count)
+{
+    return __bpm_send(fe_sockfd, data, count); // fe_sockfd is the FPGA socket
+}
+
+int bpm_fe_recv(uint8_t *data, uint32_t *count)
+{
+    return __bpm_recv(fe_sockfd, data, count); // fe_sockfd is the FPGA socket
 }
 
 // Command-line handling
@@ -214,15 +254,18 @@ void print_usage (FILE* stream, int exit_code)
             "  -v  --verbose                   Print verbose messages.\n"
             "  -b  --blink                     Blink board leds\n"
             "  -r  --reset                     Reconfigure all options to its defaults\n"
-            "  -o  --sethostname  <host>       Sets hostname to <host>\n"
+            "  -o  --setfpgahostname  <host>   Sets FPGA hostname to <host>\n"
+            "  -w  --setrffehostname  <host>   Sets RFFE hostname to <host>\n"
             "  -x  --setkx        <value>[nm]  Sets parameter Kx to <value>\n"
             "                                    [in UFIX25_0 format]\n"
             "  -y  --setky        <value>[nm]  Sets parameter Ky to <value>\n"
             "                                   [in UFIX25_0 format]\n"
             "  -s  --setksum      <value>      Sets parameter Ksum to <value>\n"
             "                                   [in FIX25_24 format]\n"
-            "  -j  --setswon                   Sets FPGA switching on\n"
-            "  -k  --setswoff                  Sets FPGA switching off\n"
+            "  -j  --setswon                   Sets FPGA deswitching on\n"
+            "  -k  --setswoff                  Sets FPGA deswitching off\n"
+            "  -g  --setfeswon                 Sets RFFE switching on\n"
+            "  -m  --setfeswoff                Sets RFFE switching off\n"
             "  -d  --setdivclk    <value>      Sets FPGA switching divider clock to <value>\n"
             "                                    [in number of ADC clock cycles]\n"
             "  -p  --setphaseclk  <value>      Sets FPGA switching phase clock to <value>\n"
@@ -239,10 +282,22 @@ void print_usage (FILE* stream, int exit_code)
             "                                  0 -> ADC; 1-> TBT Amp; 2 -> TBT Pos\n"
             "                                  3 -> FOFB Amp; 4-> FOFB Pos]\n"
             "  -t  --startacq                  Starts FPGA acquistion with the previous parameters\n"
+            "  -a  --setfeatt1    <value>      Sets the RFFE Attenuator 1 to <value>\n"
+            "                                  [<value> must be between 0 and 31.5 [dB]\n"
+            "                                   with 0.5 step. Invalid attenuation values\n"
+            "                                   will be rounded down to the nearest valid\n"
+            "                                   value]\n"
+            "  -z  --setfeatt2    <value>      Sets the RFFE Attenuator 2 to <value>\n"
+            "                                  [<value> must be between 0 and 31.5 [dB]\n"
+            "                                   with 0.5 step. Invalid attenuation values\n"
+            "                                   will be rounded down to the nearest valid\n"
+            "                                   value]\n"
             "  -X  --getkx                     Gets parameter Kx [nm] in UFIX25_0 format\n"
             "  -Y  --getky                     Gets parameter Ky [nm] in UFIX25_0 format\n"
             "  -S  --getksum                   Gets parameter Ksum in FIX25_24 format\n"
-            "  -J  --getsw                     Gets FPGA switching state \n"
+            "  -J  --getsw                     Gets FPGA deswitching state \n"
+            "                                    [0x1 is no switching and 0x3 is switching]\n"
+            "  -G  --getfesw                   Gets RFFE switching state \n"
             "                                    [0x1 is no switching and 0x3 is switching]\n"
             "  -D  --getdivclk                 Gets FPGA switching divider clock value\n"
             "                                    [in number of ADC clock cycles]\n"
@@ -272,12 +327,15 @@ static struct option long_options[] =
     {"verbose",         no_argument,         NULL, 'v'},
     {"blink",           no_argument,         NULL, 'b'},
     {"reset",           no_argument,         NULL, 'r'},
-    {"sethostname",     required_argument,   NULL, 'o'},
+    {"setfpgahostname", required_argument,   NULL, 'o'},
+    {"setrffehostname", required_argument,   NULL, 'w'},
     {"setkx",           required_argument,   NULL, 'x'},
     {"setky",           required_argument,   NULL, 'y'},
     {"setksum",         required_argument,   NULL, 's'},
     {"setswon",         no_argument,         NULL, 'j'},
     {"setswoff",        no_argument,         NULL, 'k'},
+    {"setfeswon",       no_argument,         NULL, 'g'},
+    {"setfeswoff",      no_argument,         NULL, 'm'},
     {"setdivclk",       required_argument,   NULL, 'd'},
     {"setphaseclk",     required_argument,   NULL, 'p'},
     {"setadcclk",       required_argument,   NULL, 'q'},
@@ -285,16 +343,21 @@ static struct option long_options[] =
     {"setsamples",      required_argument,   NULL, 'l'},
     {"setchan",         required_argument,   NULL, 'c'},
     {"startacq",        no_argument,         NULL, 't'},
+    {"setfeatt1",       required_argument,   NULL, 'a'},
+    {"setfeatt2",       required_argument,   NULL, 'z'},
     {"getkx",           no_argument,         NULL, 'X'},
     {"getky",           no_argument,         NULL, 'Y'},
     {"getksum",         no_argument,         NULL, 'S'},
-    {"getsw ",          no_argument,         NULL, 'J'},
+    {"getsw",           no_argument,         NULL, 'J'},
+    {"getfesw",         no_argument,         NULL, 'G'},
     {"getdivclk",       no_argument,         NULL, 'D'},
     {"getphaseclk",     no_argument,         NULL, 'P'},
     {"getadcclk",       no_argument,         NULL, 'Q'},
     {"getddsfreq",      no_argument,         NULL, 'I'},
     {"getsamples",      no_argument,         NULL, 'L'},
     {"getchan",         no_argument,         NULL, 'C'},
+    {"getfeatt1",       no_argument,         NULL, 'A'},
+    {"getfeatt2",       no_argument,         NULL, 'Z'},
     {"getcurve",        required_argument,   NULL, 'B'},
     {"getmonitamp",     no_argument,         NULL, 'E'},
     {"getmonitpos",     no_argument,         NULL, 'F'},
@@ -307,6 +370,10 @@ struct call_func_t {
     uint8_t param_in[sizeof(uint32_t)*2]; // 2 32-bits variables
     uint8_t param_out[sizeof(uint32_t)]; // 1 32-bits variable
 };
+
+/***************************************************/
+/*************** General Functions *****************/
+/***************************************************/
 
 #define BLINK_FUNC_ID           0
 #define BLINK_FUNC_NAME         "blink"
@@ -383,6 +450,10 @@ static struct call_func_t call_func[END_ID] =
     {SET_ACQ_START_NAME         , 0, {0}, {0}}
 };
 
+/***************************************************/
+/*************** Streaming CURVES ******************/
+/***************************************************/
+
 #define CURVE_MONIT_AMP_ID      0
 #define CURVE_MONIT_AMP_NAME    "monit_amp"
 #define CURVE_MONIT_POS_ID      1
@@ -412,6 +483,9 @@ static struct call_func_t call_curve_type[END_CURVE_TYPE_ID] = {
     {ANY_CURVE_TYPE_NAME        , 0, {0}, {0}}
 };
 
+/***************************************************/
+/*************** On-demand CURVES ******************/
+/***************************************************/
 // We have 5 curves declared in server:
 // 0 -> ADC, 1-> TBTAMP, 2 -> TBTPOS,
 // 3 -> FOFBAMP, 4 -> FOFBPOS
@@ -434,6 +508,47 @@ static struct call_func_t call_curve[END_CURVE_ID] = {
     {CURVE_FOFBAMP_NAME         , 0, {0}, {0}},
     {CURVE_FOFBPOS_NAME         , 0, {0}, {0}}
 };
+
+/***************************************************/
+/*************** RFFE Functions * ******************/
+/***************************************************/
+
+struct call_var_t {
+    const char *name;
+    int call;
+    int rw;                               // 1 is read and 0 is write
+    uint8_t write_val[sizeof(uint32_t)*2]; // 2 32-bits variables
+    uint8_t read_val[sizeof(uint32_t)*2]; // 2 32-bits variable
+};
+
+#define SET_FE_SW_ON_ID         0
+#define SET_FE_SW_ON_NAME       "getset_fe_sw"
+#define SET_FE_SW_OFF_ID        (SET_FE_SW_ON_ID) // They are the same ID in FE server
+#define SET_FE_SW_OFF_NAME      SET_FE_SW_ON_NAME
+#define GET_FE_SW_ID            (SET_FE_SW_ON_ID) // The are the same ID in FE server
+#define GET_FE_SW_NAME          SET_FE_SW_ON_NAME
+#define GETSET_FE_ATT1_ID       1
+#define GETSET_FE_ATT1_NAME     "getset_fe_att1"
+#define GETSET_FE_ATT2_ID       2
+#define GETSET_FE_ATT2_NAME     "getset_fe_att2"
+#define END_FE_ID               3
+
+static struct call_var_t call_fe_var[END_FE_ID] = {
+    {SET_FE_SW_ON_NAME          , 0, 0, {0}, {0}}, // The set "sw off" and "get sw"
+                                                 // are on the same ID in FE server
+    {GETSET_FE_ATT1_NAME        , 0, 0, {0}, {0}}, // The set "att1" and get "att1"
+                                                 // are on the same ID in FE server
+    {GETSET_FE_ATT2_NAME        , 0, 0, {0}, {0}} // The set "att2" and get "att2"
+                                                 // are on the same ID in FE server
+};
+
+// Some FE variable values
+#define FE_SW_OFF               0x1
+#define FE_SW_ON                0x3
+
+/***************************************************/
+/************ Client Utility Functions *************/
+/***************************************************/
 
 #define NUM_CHANNELS 4
 #define SIZE_16_BYTES sizeof(uint16_t)
@@ -479,12 +594,72 @@ int plot_curve_32 (gnuplot_ctrl *h1, double *plot_data, uint32_t len, char *str)
     return 0;
 }
 
-int main(int argc, char *argv[])
+/***************************************************/
+/************ Socket-specific Functions *************/
+/***************************************************/
+int bpm_connection(char *hostname, char* port)
 {
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
     int yes = 1;
+    int fd;
+
+    // Socket specific part
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ((rv = getaddrinfo(hostname, port, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return -1;
+    }
+
+    // loop through all the results and connect to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((fd = socket(p->ai_family, p->ai_socktype,
+                        p->ai_protocol)) == -1) {
+            perror("client: socket");
+            continue;
+        }
+
+        /* This is important for correct behaviour */
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes,
+                    sizeof(int)) == -1) {
+            perror("setsockopt");
+            return -2;
+            //exit(1);
+        }
+
+        if (connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(fd);
+            perror("client: connect");
+            continue;
+        }
+
+        break;
+    }
+
+    if (p == NULL) {
+        fprintf(stderr, "client: failed to connect\n");
+        return -3;
+    }
+
+    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+            s, sizeof s);
+    DEBUGP("client: connecting to %s\n", s);
+
+    freeaddrinfo(servinfo); // all done with this structure
+
+    return fd;
+}
+
+int main(int argc, char *argv[])
+{
+    //struct addrinfo hints, *servinfo, *p;
+    //int rv;
+    //char s[INET6_ADDRSTRLEN];
+    //int yes = 1;
 
     int verbose = 0;
     int ch;
@@ -499,7 +674,8 @@ int main(int argc, char *argv[])
     program_name = argv[0];
 
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:x:y:s:jkd:p:q:i:l:c:tXYSJDPQILCB:EF", long_options, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:q:i:l:c:gmtXYSJDPQILCB:EFG",
+                    long_options, NULL)) != -1)
     {
         // check to see if a single character or long option came through
         switch (ch)
@@ -517,9 +693,13 @@ int main(int argc, char *argv[])
             case 'r':
                 call_func[RESET_FUNC_ID].call = 1;
                 break;
-                // Set Hostname
+                // Set FPGA Hostname
             case 'o':
                 hostname = strdup(optarg);
+                break;
+                // Set RFFE Hostname
+            case 'w':
+                fe_hostname = strdup(optarg);
                 break;
                 // Set KX
             case 'x':
@@ -536,13 +716,25 @@ int main(int argc, char *argv[])
                 call_func[SET_KSUM_ID].call = 1;
                 *((uint32_t *)call_func[SET_KSUM_ID].param_in) = (uint32_t) atoi(optarg);
                 break;
-                // Set Switching On
+                // Set FPGA Deswitching On
             case 'j':
                 call_func[SET_SW_ON_ID].call = 1;
                 break;
-                // Set Switching Off
+                // Set FPGA Deswitching Off
             case 'k':
                 call_func[SET_SW_OFF_ID].call = 1;
+                break;
+                // Set FE Switching On
+            case 'g':
+                call_fe_var[SET_FE_SW_ON_ID].call = 1;
+                call_fe_var[SET_FE_SW_ON_ID].rw = 0; // write to varaible
+                *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) FE_SW_ON;
+                break;
+                // Set FE Switching Off
+            case 'm':
+                call_fe_var[SET_FE_SW_ON_ID].call = 1;
+                call_fe_var[SET_FE_SW_ON_ID].rw = 0;
+                *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) FE_SW_OFF;
                 break;
                 // Set DIVCLK
             case 'd':
@@ -582,6 +774,18 @@ int main(int argc, char *argv[])
             case 't':
                 call_func[SET_ACQ_START_ID].call = 1;
                 break;
+                // Set FE Att1
+            case 'a':
+                call_fe_var[GETSET_FE_ATT1_ID].call = 1;
+                call_fe_var[GETSET_FE_ATT1_ID].rw = 0; // Write value to variable
+                *((double *)call_fe_var[GETSET_FE_ATT1_ID].write_val) = (double) atof(optarg);
+                break;
+                // Set FE Att2
+            case 'z':
+                call_fe_var[GETSET_FE_ATT2_ID].call = 1;
+                call_fe_var[GETSET_FE_ATT2_ID].rw = 0; // Write value to variable
+                *((double *)call_fe_var[GETSET_FE_ATT2_ID].write_val) = (double) atof(optarg);
+                break;
                 // Get Kx
             case 'X':
                 call_func[GET_KX_ID].call = 1;
@@ -594,9 +798,14 @@ int main(int argc, char *argv[])
             case 'S':
                 call_func[GET_KSUM_ID].call = 1;
                 break;
-                // Get Switching Off
+                // Get FPGA Deswitching State
             case 'J':
                 call_func[GET_SW_ID].call = 1;
+                break;
+                // Get FE Switching State
+            case 'G':
+                call_fe_var[SET_FE_SW_ON_ID].call = 1;
+                call_fe_var[SET_FE_SW_ON_ID].rw = 1; // Read value from variable
                 break;
                 // Get DIVCLK
             case 'D':
@@ -622,6 +831,16 @@ int main(int argc, char *argv[])
             case 'C':
                 call_func[GET_ACQ_CHAN_ID].call = 1;
                 break;
+                // Get FE Att1
+            case 'A':
+                call_fe_var[GETSET_FE_ATT1_ID].call = 1;
+                call_fe_var[GETSET_FE_ATT1_ID].rw = 1; // Read value from variable
+                break;
+                // Get FE Att2
+            case 'Z':
+                call_fe_var[GETSET_FE_ATT2_ID].call = 1;
+                call_fe_var[GETSET_FE_ATT2_ID].rw = 1; // Read value from variable
+                break;
                 // Get Curve
             case 'B':
                 call_curve_type[ANY_CURVE_TYPE_ID].call = 1;
@@ -646,8 +865,14 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Options checking!
     if (hostname == NULL) {
-        fprintf(stderr, "%s: hostname not set!\n", program_name);
+        fprintf(stderr, "%s: FPGA hostname not set!\n", program_name);
+        print_usage(stderr, 1);
+    }
+
+    if (fe_hostname == NULL) {
+        fprintf(stderr, "%s: RFFE hostname not set!\n", program_name);
         print_usage(stderr, 1);
     }
 
@@ -686,73 +911,102 @@ int main(int argc, char *argv[])
         exit (0);
     }
 
-    // Socket specific part
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
+    ////// Socket specific part
+    ////memset(&hints, 0, sizeof hints);
+    ////hints.ai_family = AF_UNSPEC;
+    ////hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(hostname, PORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
+    ////if ((rv = getaddrinfo(hostname, PORT, &hints, &servinfo)) != 0) {
+    ////    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    ////    return 1;
+    ////}
+
+    ////// loop through all the results and connect to the first we can
+    ////for(p = servinfo; p != NULL; p = p->ai_next) {
+    ////    if ((sockfd = socket(p->ai_family, p->ai_socktype,
+    ////                    p->ai_protocol)) == -1) {
+    ////        perror("client: socket");
+    ////        continue;
+    ////    }
+
+    ////    /* This is important for correct behaviour */
+    ////    if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &yes,
+    ////                sizeof(int)) == -1) {
+    ////        perror("setsockopt");
+    ////        exit(1);
+    ////    }
+
+    ////    if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+    ////        close(sockfd);
+    ////        perror("client: connect");
+    ////        continue;
+    ////    }
+
+    ////    break;
+    ////}
+
+    ////if (p == NULL) {
+    ////    fprintf(stderr, "client: failed to connect\n");
+    ////    return 2;
+    ////}
+
+    ////inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+    ////        s, sizeof s);
+    ////DEBUGP("client: connecting to %s\n", s);
+
+    ////freeaddrinfo(servinfo); // all done with this structure
+
+    ////return fd;
+    ////}
+
+    // Initilize connection to FPGA and FE
+    sockfd = bpm_connection(hostname, PORT);
+
+    if (sockfd < 0) {
+        fprintf(stderr, "Error connecting to FPGA server\n");
+        goto exit_fpga_conn;
     }
 
-    // loop through all the results and connect to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                        p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
-        }
+    fe_sockfd = bpm_connection(fe_hostname, FE_PORT);
 
-        /* This is important for correct behaviour */
-        if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &yes,
-                    sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
-        }
-
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("client: connect");
-            continue;
-        }
-
-        break;
+    if (fe_sockfd < 0) {
+        fprintf(stderr, "Error connecting to FE server\n");
+        goto exit_fe_conn;
     }
-
-    if (p == NULL) {
-        fprintf(stderr, "client: failed to connect\n");
-        return 2;
-    }
-
-    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-            s, sizeof s);
-    DEBUGP("client: connecting to %s\n", s);
-
-    freeaddrinfo(servinfo); // all done with this structure
 
     // Create a new client instance
-    bsmp_client_t *client = bsmp_client_new(bpm_send, bpm_recv);
+    bsmp_client_t *client = bsmp_client_new(bpm_fpga_send, bpm_fpga_recv);
 
-    if(!client)
-    {
-        fprintf(stderr, "Error allocating BSMP instance\n");
-        goto exit_close;
+    if(!client) {
+        fprintf(stderr, "Error allocating FPGA BSMP instance\n");
+        goto exit_fpga_close;
     }
 
     // Initialize the client instance (communication must be already working)
     enum bsmp_err err;
-    if((err = bsmp_client_init(client)))
-    {
-        fprintf(stderr, "bsmp_client_init: %s\n", bsmp_error_str(err));
-        goto exit_destroy;
+    if((err = bsmp_client_init(client))) {
+        fprintf(stderr, "bsmp_client_init (FPGA): %s\n", bsmp_error_str(err));
+        goto exit_fpga_destroy;
+    }
+
+    // Create a new client FE instance
+    bsmp_client_t *fe_client = bsmp_client_new(bpm_fe_send, bpm_fe_recv);
+
+    if(!fe_client) {
+        fprintf(stderr, "Error allocating FE BSMP instance\n");
+        goto exit_fe_close;
+    }
+
+    if((err = bsmp_client_init(fe_client))) {
+        fprintf(stderr, "bsmp_client_init (FE): %s\n", bsmp_error_str(err));
+        goto exit_fe_destroy;
     }
 
     struct bsmp_func_info_list *funcs;
-    TRY("funcs_list", bsmp_get_funcs_list(client, &funcs));
+    TRY("funcs_fpga_list", bsmp_get_funcs_list(client, &funcs));
 
-    // Get list of functions
-    DEBUGP("\n"C"Server has %d Functions(s):\n", funcs->count);
+    // Get FPGA list of functions
+    DEBUGP("\n"C"Server FPGA has %d Functions(s):\n", funcs->count);
     unsigned int i;
     for(i = 0; i < funcs->count; ++i) {
         DEBUGP(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
@@ -761,7 +1015,31 @@ int main(int argc, char *argv[])
                 funcs->list[i].output_size);
     }
 
-    // Get list of curves
+    struct bsmp_func_info_list *fe_funcs;
+    TRY("funcs_fpga_list", bsmp_get_funcs_list(fe_client, &fe_funcs));
+
+    // Get FE list of functions
+    DEBUGP("\n"C"Server FE has %d Functions(s):\n", fe_funcs->count);
+    for(i = 0; i < fe_funcs->count; ++i) {
+        DEBUGP(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
+                fe_funcs->list[i].id,
+                fe_funcs->list[i].input_size,
+                fe_funcs->list[i].output_size);
+    }
+
+    struct bsmp_var_info_list *fe_vars;
+    TRY("vars_fe_list", bsmp_get_vars_list(fe_client, &fe_vars));
+
+    // Get FE list of variables
+    DEBUGP(C"Server FE has %d Variable(s):\n", fe_vars->count);
+    for(i = 0; i < fe_vars->count; ++i)
+        printf(C" ID[%d] SIZE[%2d] %s\n",
+                fe_vars->list[i].id,
+                fe_vars->list[i].size,
+                fe_vars->list[i].writable ? "WRITABLE " : "READ-ONLY");
+
+
+    // Get FPGA list of curves
     struct bsmp_curve_info_list *curves;
     TRY("curves_list", bsmp_get_curves_list(client, &curves));
 
@@ -773,7 +1051,7 @@ int main(int argc, char *argv[])
                 curves->list[i].block_size,
                 curves->list[i].writable ? "WRITABLE" : "READ-ONLY");
 
-    // Call all the functions the user specified with its parameters
+    // Call all the FPGA functions the user specified with its parameters
     struct bsmp_func_info *func;
     uint8_t func_error;
 
@@ -792,6 +1070,34 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Call all the FE variables the user specified with its parameters
+    DEBUGP("\n");
+    struct bsmp_var_info *fe_var_name;// = &fe_vars->list[0];
+
+    for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
+        if (call_fe_var[i].call) {
+            fe_var_name = &fe_vars->list[i];
+
+            if (call_fe_var[i].rw) { // Read variable
+                DEBUGP ("calling %s variable for reading!\n", call_fe_var[i].name);
+                TRY(call_fe_var[i].name, bsmp_read_var(fe_client, fe_var_name, call_fe_var[i].read_val));
+            }
+            else { // write variable
+                DEBUGP ("calling %s variable for writing with value 0x%x!\n", call_fe_var[i].name,
+                        *((uint32_t *)call_fe_var[i].write_val));
+                TRY(call_fe_var[i].name, bsmp_write_var(fe_client, fe_var_name, call_fe_var[i].write_val));
+            }
+        }
+    }
+
+    // Show all results
+    for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
+        if (call_fe_var[i].call && call_fe_var[i].rw == 1) { // Print result
+                                                             // for read variables only
+            printf ("%s: %d\n", call_fe_var[i].name, *((uint8_t *)call_fe_var[i].read_val));
+        }
+    }
+
     // Call specified curves
     struct bsmp_curve_info *curve;
     uint8_t *curve_data = NULL;
@@ -803,7 +1109,7 @@ int main(int argc, char *argv[])
 
             curve = &curves->list[i];
             curve_data = malloc(curve->block_size*curve->nblocks);
-            /* POtential failure can happen here if large buffer is requested!! */
+            /* Potential failure can happen here if large buffer is requested!! */
             TRY("malloc curve data", !curve_data);
             TRY((call_curve[i].name), bsmp_read_curve(client, curve,
                         curve_data, &curve_data_len));
@@ -822,7 +1128,7 @@ int main(int argc, char *argv[])
     //h1 = gnuplot_init();
     //gnuplot_setstyle(h1, "lines") ;
 
-    // poll to infinity the Monit. Functions if called
+    // Poll to infinity the Monit. Functions if called
     for (i = 0; i < ARRAY_SIZE(call_curve_monit); ++i) {
         if (call_curve_monit[i].call) {
             DEBUGP(C"Requesting curve #%d\n", END_CURVE_ID+i);
@@ -851,16 +1157,22 @@ int main(int argc, char *argv[])
         }
     }
 
-    close(sockfd);
-
-exit_destroy:
-    //gnuplot_close(h1);
     free (curve_data);
-    bsmp_client_destroy(client);
-    DEBUGP("BSMP deallocated");
-exit_close:
-    close(sockfd);
-    DEBUGP("Socket closed");
+exit_fe_destroy:
+    bsmp_client_destroy(fe_client);
+    DEBUGP("BSMP FE deallocated");
+exit_fe_close:
+exit_fpga_destroy:
+    bsmp_client_destroy (client);
+    DEBUGP("BSMP FPGA deallocated");
+exit_fpga_close:
+    close (fe_sockfd);
+    DEBUGP("Socket FE closed");
+exit_fe_conn:
+    close (sockfd);
+    DEBUGP("Socket FPGA closed");
+exit_fpga_conn:
     free (hostname);
+    free (fe_hostname);
     return 0;
 }
