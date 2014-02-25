@@ -7,6 +7,10 @@ CFLAGS = -Wall -Wextra
 INCLUDE_DIRS = -I. -Ignuplot/src
 LFLAGS = -lbsmp
 
+ifeq ($(DEBUG),y)
+	CFLAGS += -DDEBUG=1
+endif
+
 GNUPLOT_DIR = gnuplot
 # weird,  I know... just to keep things simple
 GNUPLOT_INCLUDE_DIR = $(GNUPLOT_DIR)/src

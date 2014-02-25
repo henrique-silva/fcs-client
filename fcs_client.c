@@ -32,13 +32,15 @@
     }while(0)
 
 #define PORT "8080" // the FPGA port client will be connecting to
-#define FE_PORT "6191" // the RFFE port client will be connecting to
+#define FE_PORT "6791" // the RFFE port client will be connecting to
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define MONIT_POLL_RATE 10000 //usec
 
 const char* program_name;
 char *hostname = NULL;
+int need_hostname = 0;
 char *fe_hostname = NULL;
+int need_fe_hostname = 0;
 
 sig_atomic_t _interrupted = 0;
 
@@ -512,11 +514,20 @@ static struct call_func_t call_curve[END_CURVE_ID] = {
 /***************************************************/
 /*************** RFFE Functions * ******************/
 /***************************************************/
+enum var_type {
+    UINT8_T = 0,
+    UINT16_T,
+    UINT32_T,
+    UINT64_T,
+    FLOAT_T,
+    DOUBLE_T
+};
 
 struct call_var_t {
     const char *name;
     int call;
     int rw;                               // 1 is read and 0 is write
+    enum var_type type;
     uint8_t write_val[sizeof(uint32_t)*2]; // 2 32-bits variables
     uint8_t read_val[sizeof(uint32_t)*2]; // 2 32-bits variable
 };
@@ -527,6 +538,8 @@ struct call_var_t {
 #define SET_FE_SW_OFF_NAME      SET_FE_SW_ON_NAME
 #define GET_FE_SW_ID            (SET_FE_SW_ON_ID) // The are the same ID in FE server
 #define GET_FE_SW_NAME          SET_FE_SW_ON_NAME
+//#define GETSET_FE_SW_LVL_ID     1
+//#define GETSET_FE_SW_LVL_NAME   "getset_sw_lvl"
 #define GETSET_FE_ATT1_ID       1
 #define GETSET_FE_ATT1_NAME     "getset_fe_att1"
 #define GETSET_FE_ATT2_ID       2
@@ -534,17 +547,21 @@ struct call_var_t {
 #define END_FE_ID               3
 
 static struct call_var_t call_fe_var[END_FE_ID] = {
-    {SET_FE_SW_ON_NAME          , 0, 0, {0}, {0}}, // The set "sw off" and "get sw"
+    {SET_FE_SW_ON_NAME          , 0, 0, UINT8_T, {0}, {0}}, // The set "sw off" and "get sw"
                                                  // are on the same ID in FE server
-    {GETSET_FE_ATT1_NAME        , 0, 0, {0}, {0}}, // The set "att1" and get "att1"
+    //{GETSET_FE_SW_LVL_NAME      , 0, 0, UINT8_T, {0}, {0}}, // The set "sw lvl" and get "sw lvl"
+    //                                             // are on the same ID in FE server
+    {GETSET_FE_ATT1_NAME        , 0, 0, DOUBLE_T, {0}, {0}}, // The set "att1" and get "att1"
                                                  // are on the same ID in FE server
-    {GETSET_FE_ATT2_NAME        , 0, 0, {0}, {0}} // The set "att2" and get "att2"
+    {GETSET_FE_ATT2_NAME        , 0, 0, DOUBLE_T, {0}, {0}} // The set "att2" and get "att2"
                                                  // are on the same ID in FE server
 };
 
 // Some FE variable values
 #define FE_SW_OFF               0x1
 #define FE_SW_ON                0x3
+// Some FE corection factors
+#define FE_SW_DIV_FACTOR        2
 
 /***************************************************/
 /************ Client Utility Functions *************/
@@ -590,6 +607,42 @@ int print_curve_32 (uint8_t *curve_data, uint32_t len)
 int plot_curve_32 (gnuplot_ctrl *h1, double *plot_data, uint32_t len, char *str)
 {
     gnuplot_plot_x(h1, plot_data, len, str);
+
+    return 0;
+}
+
+int read_bsmp_val(struct call_var_t *fe_var)
+{
+    // Find out with type of varible this is and printf
+    // the correct string specifier
+    switch (fe_var->type) {
+        case UINT8_T:
+            printf ("%s: %" PRIu8 "\n", fe_var->name, *((uint8_t *)fe_var->read_val));
+            break;
+
+        case UINT16_T:
+            printf ("%s: %" PRIu16 "\n", fe_var->name, *((uint16_t *)fe_var->read_val));
+            break;
+
+        case UINT32_T:
+            printf ("%s: %" PRIu32 "\n", fe_var->name, *((uint32_t *)fe_var->read_val));
+            break;
+
+        case UINT64_T:
+            printf ("%s: %" PRIu64 "\n", fe_var->name, *((uint64_t *)fe_var->read_val));
+            break;
+
+        case FLOAT_T:
+            printf ("%s: %f\n", fe_var->name, *((float *)fe_var->read_val));
+            break;
+
+        case DOUBLE_T:
+            printf ("%s: %f\n", fe_var->name, *((double *)fe_var->read_val));
+            break;
+
+        default:
+            printf ("%s: %" PRIu8 "\n", fe_var->name, *((uint8_t *)fe_var->read_val));
+    }
 
     return 0;
 }
@@ -674,7 +727,7 @@ int main(int argc, char *argv[])
     program_name = argv[0];
 
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:q:i:l:c:gmtXYSJDPQILCB:EFG",
+    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:q:i:l:c:gmta:z:XYSJDPQILCB:EFG",
                     long_options, NULL)) != -1)
     {
         // check to see if a single character or long option came through
@@ -688,10 +741,12 @@ int main(int argc, char *argv[])
                 // Blink leds
             case 'b':
                 call_func[BLINK_FUNC_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Reset to default
             case 'r':
                 call_func[RESET_FUNC_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Set FPGA Hostname
             case 'o':
@@ -705,56 +760,74 @@ int main(int argc, char *argv[])
             case 'x':
                 call_func[SET_KX_ID].call = 1;
                 *((uint32_t *)call_func[SET_KX_ID].param_in) = (uint32_t) atoi(optarg);
+                need_hostname = 1;
                 break;
                 // Set KY
             case 'y':
                 call_func[SET_KY_ID].call = 1;
                 *((uint32_t *)call_func[SET_KY_ID].param_in) = (uint32_t) atoi(optarg);
+                need_hostname = 1;
                 break;
                 // Set Ksum
             case 's':
                 call_func[SET_KSUM_ID].call = 1;
                 *((uint32_t *)call_func[SET_KSUM_ID].param_in) = (uint32_t) atoi(optarg);
+                need_hostname = 1;
                 break;
                 // Set FPGA Deswitching On
             case 'j':
                 call_func[SET_SW_ON_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Set FPGA Deswitching Off
             case 'k':
                 call_func[SET_SW_OFF_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Set FE Switching On
             case 'g':
                 call_fe_var[SET_FE_SW_ON_ID].call = 1;
-                call_fe_var[SET_FE_SW_ON_ID].rw = 0; // write to varaible
+                call_fe_var[SET_FE_SW_ON_ID].rw = 0; // write to variable
                 *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) FE_SW_ON;
+                need_fe_hostname = 1;
                 break;
                 // Set FE Switching Off
             case 'm':
                 call_fe_var[SET_FE_SW_ON_ID].call = 1;
                 call_fe_var[SET_FE_SW_ON_ID].rw = 0;
-                *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) FE_SW_OFF;
+            //    *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) FE_SW_OFF;
+                *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) 0x1;
+                need_fe_hostname = 1;
                 break;
                 // Set DIVCLK
+                // FIXME: This command is correctly implemented in the FPGA
+                // firmware, but on the RFFE controller we need 2x the clock
+                // in order to drive the switching clock, because it clocks a
+                // JK-FF in toggle mode.
+                //
+                // So, we just divide the clk div here by 2
             case 'd':
                 call_func[SET_SW_DIVCLK_ID].call = 1;
-                *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) atoi(optarg);
+                *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) (atoi(optarg)/FE_SW_DIV_FACTOR);
+                need_hostname = 1;
                 break;
                 // Set PHASECLK
             case 'p':
                 call_func[SET_SW_PHASECLK_ID].call = 1;
                 *((uint32_t *)call_func[SET_SW_PHASECLK_ID].param_in) = (uint32_t) atoi(optarg);
+                need_hostname = 1;
                 break;
                 // Set ADCCLK
             case 'q':
                 call_func[SET_ADCCLK_ID].call = 1;
                 *((uint32_t *)call_func[SET_ADCCLK_ID].param_in) = (uint32_t) atoi(optarg);
+                need_hostname = 1;
                 break;
                 // Set DDSFREQ
             case 'i':
                 call_func[SET_DDSFREQ_ID].call = 1;
                 *((uint32_t *)call_func[SET_DDSFREQ_ID].param_in) = (uint32_t) atoi(optarg);
+                need_hostname = 1;
                 break;
                 // Set Acq Samples
             case 'l':
@@ -762,6 +835,7 @@ int main(int argc, char *argv[])
                 //*((uint32_t *)call_func[SET_ACQ_SAMPLES_ID].param_in) = (uint32_t) atoi(optarg);
                 acq_samples_set = 1;
                 acq_samples_val = (uint32_t) atoi(optarg);
+                need_hostname = 1;
                 break;
                 // Set Acq Chan
             case 'c':
@@ -769,90 +843,110 @@ int main(int argc, char *argv[])
                 //*((uint32_t *)call_func[SET_ACQ_CHAN_ID].param_in) = (uint32_t) atoi(optarg);
                 acq_chan_set = 1;
                 acq_chan_val = (uint32_t) atoi(optarg);
+                need_hostname = 1;
                 break;
                 // Set Acq Start
             case 't':
                 call_func[SET_ACQ_START_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Set FE Att1
             case 'a':
                 call_fe_var[GETSET_FE_ATT1_ID].call = 1;
                 call_fe_var[GETSET_FE_ATT1_ID].rw = 0; // Write value to variable
                 *((double *)call_fe_var[GETSET_FE_ATT1_ID].write_val) = (double) atof(optarg);
+                need_fe_hostname = 1;
                 break;
                 // Set FE Att2
             case 'z':
                 call_fe_var[GETSET_FE_ATT2_ID].call = 1;
                 call_fe_var[GETSET_FE_ATT2_ID].rw = 0; // Write value to variable
                 *((double *)call_fe_var[GETSET_FE_ATT2_ID].write_val) = (double) atof(optarg);
+                need_fe_hostname = 1;
                 break;
                 // Get Kx
             case 'X':
                 call_func[GET_KX_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get Ky
             case 'Y':
                 call_func[GET_KY_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get Ksum
             case 'S':
                 call_func[GET_KSUM_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get FPGA Deswitching State
             case 'J':
                 call_func[GET_SW_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get FE Switching State
             case 'G':
                 call_fe_var[SET_FE_SW_ON_ID].call = 1;
                 call_fe_var[SET_FE_SW_ON_ID].rw = 1; // Read value from variable
+                need_fe_hostname = 1;
                 break;
                 // Get DIVCLK
             case 'D':
                 call_func[GET_SW_DIVCLK_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get PHASECLK
             case 'P':
                 call_func[GET_SW_PHASECLK_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get ADCCLK
             case 'Q':
                 call_func[GET_ADCCLK_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get DDSFREQ
             case 'I':
                 call_func[GET_DDSFREQ_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get Acq Samples
             case 'L':
                 call_func[GET_ACQ_SAMPLES_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get Acq Chan
             case 'C':
                 call_func[GET_ACQ_CHAN_ID].call = 1;
+                need_hostname = 1;
                 break;
                 // Get FE Att1
             case 'A':
                 call_fe_var[GETSET_FE_ATT1_ID].call = 1;
                 call_fe_var[GETSET_FE_ATT1_ID].rw = 1; // Read value from variable
+                need_fe_hostname = 1;
                 break;
                 // Get FE Att2
             case 'Z':
                 call_fe_var[GETSET_FE_ATT2_ID].call = 1;
                 call_fe_var[GETSET_FE_ATT2_ID].rw = 1; // Read value from variable
+                need_fe_hostname = 1;
                 break;
                 // Get Curve
             case 'B':
                 call_curve_type[ANY_CURVE_TYPE_ID].call = 1;
                 acq_curve_chan = (uint32_t) atoi(optarg);
                 /**((uint32_t *)call_curve[GET_CURVE_ID].param_in) = (uint32_t) atoi(optarg);*/
+                need_hostname = 1;
                 break;
                 // Get Monit. Amp
             case 'E':
                 call_curve_monit[CURVE_MONIT_AMP_ID].call = 1;
+                need_hostname = 1;
                 break;
             case 'F':
                 call_curve_monit[CURVE_MONIT_POS_ID].call = 1;
+                need_hostname = 1;
                 break;
             case ':':
             case '?':   /* The user specified an invalid option.  */
@@ -866,12 +960,12 @@ int main(int argc, char *argv[])
     }
 
     // Options checking!
-    if (hostname == NULL) {
+    if (/*need_hostname &&*/ hostname == NULL) {
         fprintf(stderr, "%s: FPGA hostname not set!\n", program_name);
         print_usage(stderr, 1);
     }
 
-    if (fe_hostname == NULL) {
+    if (/*need_fe_hostname &&*/ fe_hostname == NULL) {
         fprintf(stderr, "%s: RFFE hostname not set!\n", program_name);
         print_usage(stderr, 1);
     }
@@ -911,53 +1005,7 @@ int main(int argc, char *argv[])
         exit (0);
     }
 
-    ////// Socket specific part
-    ////memset(&hints, 0, sizeof hints);
-    ////hints.ai_family = AF_UNSPEC;
-    ////hints.ai_socktype = SOCK_STREAM;
-
-    ////if ((rv = getaddrinfo(hostname, PORT, &hints, &servinfo)) != 0) {
-    ////    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-    ////    return 1;
-    ////}
-
-    ////// loop through all the results and connect to the first we can
-    ////for(p = servinfo; p != NULL; p = p->ai_next) {
-    ////    if ((sockfd = socket(p->ai_family, p->ai_socktype,
-    ////                    p->ai_protocol)) == -1) {
-    ////        perror("client: socket");
-    ////        continue;
-    ////    }
-
-    ////    /* This is important for correct behaviour */
-    ////    if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &yes,
-    ////                sizeof(int)) == -1) {
-    ////        perror("setsockopt");
-    ////        exit(1);
-    ////    }
-
-    ////    if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-    ////        close(sockfd);
-    ////        perror("client: connect");
-    ////        continue;
-    ////    }
-
-    ////    break;
-    ////}
-
-    ////if (p == NULL) {
-    ////    fprintf(stderr, "client: failed to connect\n");
-    ////    return 2;
-    ////}
-
-    ////inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-    ////        s, sizeof s);
-    ////DEBUGP("client: connecting to %s\n", s);
-
-    ////freeaddrinfo(servinfo); // all done with this structure
-
-    ////return fd;
-    ////}
+    // Socket specific part
 
     // Initilize connection to FPGA and FE
     sockfd = bpm_connection(hostname, PORT);
@@ -982,12 +1030,16 @@ int main(int argc, char *argv[])
         goto exit_fpga_close;
     }
 
+    DEBUGP ("FPGA BSMP instance created!\n");
+
     // Initialize the client instance (communication must be already working)
     enum bsmp_err err;
     if((err = bsmp_client_init(client))) {
         fprintf(stderr, "bsmp_client_init (FPGA): %s\n", bsmp_error_str(err));
         goto exit_fpga_destroy;
     }
+
+    DEBUGP ("FPGA BSMP initilized!\n");
 
     // Create a new client FE instance
     bsmp_client_t *fe_client = bsmp_client_new(bpm_fe_send, bpm_fe_recv);
@@ -997,10 +1049,14 @@ int main(int argc, char *argv[])
         goto exit_fe_close;
     }
 
+    DEBUGP ("BSMP FE created!\n");
+
     if((err = bsmp_client_init(fe_client))) {
         fprintf(stderr, "bsmp_client_init (FE): %s\n", bsmp_error_str(err));
         goto exit_fe_destroy;
     }
+
+    DEBUGP ("BSMP FE initilized!\n");
 
     struct bsmp_func_info_list *funcs;
     TRY("funcs_fpga_list", bsmp_get_funcs_list(client, &funcs));
@@ -1033,7 +1089,7 @@ int main(int argc, char *argv[])
     // Get FE list of variables
     DEBUGP(C"Server FE has %d Variable(s):\n", fe_vars->count);
     for(i = 0; i < fe_vars->count; ++i)
-        printf(C" ID[%d] SIZE[%2d] %s\n",
+        DEBUGP(C" ID[%d] SIZE[%2d] %s\n",
                 fe_vars->list[i].id,
                 fe_vars->list[i].size,
                 fe_vars->list[i].writable ? "WRITABLE " : "READ-ONLY");
@@ -1083,8 +1139,10 @@ int main(int argc, char *argv[])
                 TRY(call_fe_var[i].name, bsmp_read_var(fe_client, fe_var_name, call_fe_var[i].read_val));
             }
             else { // write variable
-                DEBUGP ("calling %s variable for writing with value 0x%x!\n", call_fe_var[i].name,
-                        *((uint32_t *)call_fe_var[i].write_val));
+                //DEBUGP ("calling %s variable for writing with value 0x%x!\n", call_fe_var[i].name,
+                //        *((uint32_t *)call_fe_var[i].write_val));
+                DEBUGP ("calling %s variable for writing with value %f!\n", call_fe_var[i].name,
+                        *((double *)call_fe_var[i].write_val));
                 TRY(call_fe_var[i].name, bsmp_write_var(fe_client, fe_var_name, call_fe_var[i].write_val));
             }
         }
@@ -1094,7 +1152,8 @@ int main(int argc, char *argv[])
     for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
         if (call_fe_var[i].call && call_fe_var[i].rw == 1) { // Print result
                                                              // for read variables only
-            printf ("%s: %d\n", call_fe_var[i].name, *((uint8_t *)call_fe_var[i].read_val));
+            read_bsmp_val(&call_fe_var[i]);
+            //printf ("%s: %f\n", call_fe_var[i].name, *((double *)call_fe_var[i].read_val));
         }
     }
 
@@ -1160,17 +1219,17 @@ int main(int argc, char *argv[])
     free (curve_data);
 exit_fe_destroy:
     bsmp_client_destroy(fe_client);
-    DEBUGP("BSMP FE deallocated");
+    DEBUGP("BSMP FE deallocated\n");
 exit_fe_close:
 exit_fpga_destroy:
     bsmp_client_destroy (client);
-    DEBUGP("BSMP FPGA deallocated");
+    DEBUGP("BSMP FPGA deallocated\n");
 exit_fpga_close:
     close (fe_sockfd);
-    DEBUGP("Socket FE closed");
+    DEBUGP("Socket FE closed\n");
 exit_fe_conn:
     close (sockfd);
-    DEBUGP("Socket FPGA closed");
+    DEBUGP("Socket FPGA closed\n");
 exit_fpga_conn:
     free (hostname);
     free (fe_hostname);
