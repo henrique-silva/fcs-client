@@ -16,7 +16,6 @@
 
 #include "fcs_client.h"
 #include "debug.h"
-#include "gnuplot_i.h"
 
 #define C "CLIENT: "
 #define PACKET_SIZE             BSMP_MAX_MESSAGE
@@ -548,13 +547,13 @@ struct call_var_t {
 
 static struct call_var_t call_fe_var[END_FE_ID] = {
     {SET_FE_SW_ON_NAME          , 0, 0, UINT8_T, {0}, {0}}, // The set "sw off" and "get sw"
-                                                 // are on the same ID in FE server
+    // are on the same ID in FE server
     //{GETSET_FE_SW_LVL_NAME      , 0, 0, UINT8_T, {0}, {0}}, // The set "sw lvl" and get "sw lvl"
     //                                             // are on the same ID in FE server
     {GETSET_FE_ATT1_NAME        , 0, 0, DOUBLE_T, {0}, {0}}, // The set "att1" and get "att1"
-                                                 // are on the same ID in FE server
+    // are on the same ID in FE server
     {GETSET_FE_ATT2_NAME        , 0, 0, DOUBLE_T, {0}, {0}} // The set "att2" and get "att2"
-                                                 // are on the same ID in FE server
+    // are on the same ID in FE server
 };
 
 // Some FE variable values
@@ -600,13 +599,6 @@ int print_curve_32 (uint8_t *curve_data, uint32_t len)
                 *((int32_t *)curve_data + i*NUM_CHANNELS+2),
                 *((int32_t *)curve_data + i*NUM_CHANNELS+3));
     }
-
-    return 0;
-}
-
-int plot_curve_32 (gnuplot_ctrl *h1, double *plot_data, uint32_t len, char *str)
-{
-    gnuplot_plot_x(h1, plot_data, len, str);
 
     return 0;
 }
@@ -795,7 +787,7 @@ int main(int argc, char *argv[])
             case 'm':
                 call_fe_var[SET_FE_SW_ON_ID].call = 1;
                 call_fe_var[SET_FE_SW_ON_ID].rw = 0;
-            //    *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) FE_SW_OFF;
+                //    *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) FE_SW_OFF;
                 *call_fe_var[SET_FE_SW_ON_ID].write_val = (uint8_t) 0x1;
                 need_fe_hostname = 1;
                 break;
@@ -960,12 +952,12 @@ int main(int argc, char *argv[])
     }
 
     // Options checking!
-    if (/*need_hostname &&*/ hostname == NULL) {
+    if (need_hostname && hostname == NULL) {
         fprintf(stderr, "%s: FPGA hostname not set!\n", program_name);
         print_usage(stderr, 1);
     }
 
-    if (/*need_fe_hostname &&*/ fe_hostname == NULL) {
+    if (need_fe_hostname && fe_hostname == NULL) {
         fprintf(stderr, "%s: RFFE hostname not set!\n", program_name);
         print_usage(stderr, 1);
     }
@@ -1008,229 +1000,257 @@ int main(int argc, char *argv[])
     // Socket specific part
 
     // Initilize connection to FPGA and FE
-    sockfd = bpm_connection(hostname, PORT);
+    //ugly "solution" to allow connecting to just FPGA or FE
+    /***************************************************/
+    /******** Init Connection and BSMP library *********/
+    /***************************************************/
 
-    if (sockfd < 0) {
-        fprintf(stderr, "Error connecting to FPGA server\n");
-        goto exit_fpga_conn;
-    }
-
-    fe_sockfd = bpm_connection(fe_hostname, FE_PORT);
-
-    if (fe_sockfd < 0) {
-        fprintf(stderr, "Error connecting to FE server\n");
-        goto exit_fe_conn;
-    }
-
-    // Create a new client instance
-    bsmp_client_t *client = bsmp_client_new(bpm_fpga_send, bpm_fpga_recv);
-
-    if(!client) {
-        fprintf(stderr, "Error allocating FPGA BSMP instance\n");
-        goto exit_fpga_close;
-    }
-
-    DEBUGP ("FPGA BSMP instance created!\n");
-
-    // Initialize the client instance (communication must be already working)
+    bsmp_client_t *fe_client = NULL;
     enum bsmp_err err;
-    if((err = bsmp_client_init(client))) {
-        fprintf(stderr, "bsmp_client_init (FPGA): %s\n", bsmp_error_str(err));
-        goto exit_fpga_destroy;
+
+    if(need_fe_hostname) {
+        fe_sockfd = bpm_connection(fe_hostname, FE_PORT);
+
+        if (fe_sockfd < 0) {
+            fprintf(stderr, "Error connecting to FE server\n");
+            goto exit_fe_conn;
+        }
+
+        // Create a new client FE instance
+        fe_client = bsmp_client_new(bpm_fe_send, bpm_fe_recv);
+
+        if(!fe_client) {
+            fprintf(stderr, "Error allocating FE BSMP instance\n");
+            goto exit_fe_close;
+        }
+
+        DEBUGP ("BSMP FE created!\n");
+
+        if((err = bsmp_client_init(fe_client))) {
+            fprintf(stderr, "bsmp_client_init (FE): %s\n", bsmp_error_str(err));
+            goto exit_fe_destroy;
+        }
+
+        DEBUGP ("BSMP FE initilized!\n");
     }
 
-    DEBUGP ("FPGA BSMP initilized!\n");
+    bsmp_client_t *client = NULL;
 
-    // Create a new client FE instance
-    bsmp_client_t *fe_client = bsmp_client_new(bpm_fe_send, bpm_fe_recv);
+    if(need_hostname){
+        sockfd = bpm_connection(hostname, PORT);
 
-    if(!fe_client) {
-        fprintf(stderr, "Error allocating FE BSMP instance\n");
-        goto exit_fe_close;
+        if (sockfd < 0) {
+            fprintf(stderr, "Error connecting to FPGA server\n");
+            goto exit_fpga_conn;
+        }
+
+        // Create a new client instance
+        client = bsmp_client_new(bpm_fpga_send, bpm_fpga_recv);
+
+        if(!client) {
+            fprintf(stderr, "Error allocating FPGA BSMP instance\n");
+            goto exit_fpga_close;
+        }
+
+        DEBUGP ("FPGA BSMP instance created!\n");
+
+        // Initialize the client instance (communication must be already working)
+        if((err = bsmp_client_init(client))) {
+            fprintf(stderr, "bsmp_client_init (FPGA): %s\n", bsmp_error_str(err));
+            goto exit_fpga_destroy;
+        }
+
+        DEBUGP ("FPGA BSMP initilized!\n");
     }
 
-    DEBUGP ("BSMP FE created!\n");
+    /***************************************************/
+    /***************** Get BSMP handlers ***************/
+    /***************************************************/
+    struct bsmp_func_info_list *fe_funcs;
+    struct bsmp_var_info_list *fe_vars;
+    unsigned int i;
 
-    if((err = bsmp_client_init(fe_client))) {
-        fprintf(stderr, "bsmp_client_init (FE): %s\n", bsmp_error_str(err));
-        goto exit_fe_destroy;
+    if(need_fe_hostname){
+
+        TRY("funcs_fpga_list", bsmp_get_funcs_list(fe_client, &fe_funcs));
+
+        // Get FE list of functions
+        DEBUGP("\n"C"Server FE has %d Functions(s):\n", fe_funcs->count);
+        for(i = 0; i < fe_funcs->count; ++i) {
+            DEBUGP(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
+                    fe_funcs->list[i].id,
+                    fe_funcs->list[i].input_size,
+                    fe_funcs->list[i].output_size);
+        }
+
+        TRY("vars_fe_list", bsmp_get_vars_list(fe_client, &fe_vars));
+
+        // Get FE list of variables
+        DEBUGP(C"Server FE has %d Variable(s):\n", fe_vars->count);
+        for(i = 0; i < fe_vars->count; ++i) {
+            DEBUGP(C" ID[%d] SIZE[%2d] %s\n",
+                    fe_vars->list[i].id,
+                    fe_vars->list[i].size,
+                    fe_vars->list[i].writable ? "WRITABLE " : "READ-ONLY");
+        }
     }
-
-    DEBUGP ("BSMP FE initilized!\n");
 
     struct bsmp_func_info_list *funcs;
-    TRY("funcs_fpga_list", bsmp_get_funcs_list(client, &funcs));
-
-    // Get FPGA list of functions
-    DEBUGP("\n"C"Server FPGA has %d Functions(s):\n", funcs->count);
-    unsigned int i;
-    for(i = 0; i < funcs->count; ++i) {
-        DEBUGP(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
-                funcs->list[i].id,
-                funcs->list[i].input_size,
-                funcs->list[i].output_size);
-    }
-
-    struct bsmp_func_info_list *fe_funcs;
-    TRY("funcs_fpga_list", bsmp_get_funcs_list(fe_client, &fe_funcs));
-
-    // Get FE list of functions
-    DEBUGP("\n"C"Server FE has %d Functions(s):\n", fe_funcs->count);
-    for(i = 0; i < fe_funcs->count; ++i) {
-        DEBUGP(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
-                fe_funcs->list[i].id,
-                fe_funcs->list[i].input_size,
-                fe_funcs->list[i].output_size);
-    }
-
-    struct bsmp_var_info_list *fe_vars;
-    TRY("vars_fe_list", bsmp_get_vars_list(fe_client, &fe_vars));
-
-    // Get FE list of variables
-    DEBUGP(C"Server FE has %d Variable(s):\n", fe_vars->count);
-    for(i = 0; i < fe_vars->count; ++i)
-        DEBUGP(C" ID[%d] SIZE[%2d] %s\n",
-                fe_vars->list[i].id,
-                fe_vars->list[i].size,
-                fe_vars->list[i].writable ? "WRITABLE " : "READ-ONLY");
-
-
-    // Get FPGA list of curves
     struct bsmp_curve_info_list *curves;
-    TRY("curves_list", bsmp_get_curves_list(client, &curves));
 
-    DEBUGP("\n"C"Server has %d Curve(s):\n", curves->count);
-    for(i = 0; i < curves->count; ++i)
-        DEBUGP(C" ID[%d] BLOCKS[%3d (%5d bytes each)] %s\n",
-                curves->list[i].id,
-                curves->list[i].nblocks,
-                curves->list[i].block_size,
-                curves->list[i].writable ? "WRITABLE" : "READ-ONLY");
+    if(need_hostname){
 
-    // Call all the FPGA functions the user specified with its parameters
-    struct bsmp_func_info *func;
-    uint8_t func_error;
+        TRY("funcs_fpga_list", bsmp_get_funcs_list(client, &funcs));
 
-    for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
-        if (call_func[i].call) {
-            func = &funcs->list[i];
-            TRY((call_func[i].name), bsmp_func_execute(client, func,
-                        &func_error, call_func[i].param_in, call_func[i].param_out));
+        // Get FPGA list of functions
+        DEBUGP("\n"C"Server FPGA has %d Functions(s):\n", funcs->count);
+
+        for(i = 0; i < funcs->count; ++i) {
+            DEBUGP(C" ID[%d] INPUT[%2d bytes] OUTPUT[%2d bytes]\n",
+                    funcs->list[i].id,
+                    funcs->list[i].input_size,
+                    funcs->list[i].output_size);
+        }
+
+        // Get FPGA list of curves
+        TRY("curves_list", bsmp_get_curves_list(client, &curves));
+
+        DEBUGP("\n"C"Server FPGA has %d Curve(s):\n", curves->count);
+        for(i = 0; i < curves->count; ++i) {
+            DEBUGP(C" ID[%d] BLOCKS[%3d (%5d bytes each)] %s\n",
+                    curves->list[i].id,
+                    curves->list[i].nblocks,
+                    curves->list[i].block_size,
+                    curves->list[i].writable ? "WRITABLE" : "READ-ONLY");
         }
     }
 
-    // Show all results
-    for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
-        if (call_func[i].call /*&& *((uint32_t *)call_func[i].param_out) != 0*/) {
-            printf ("%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].param_out));
-        }
-    }
+    /***************************************************/
+    /**** Call BSMP variables/functions/curves *********/
+    /***************************************************/
+    if (need_fe_hostname) {
+        // Call all the FE variables the user specified with its parameters
+        DEBUGP("\n");
+        struct bsmp_var_info *fe_var_name;// = &fe_vars->list[0];
 
-    // Call all the FE variables the user specified with its parameters
-    DEBUGP("\n");
-    struct bsmp_var_info *fe_var_name;// = &fe_vars->list[0];
+        for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
+            if (call_fe_var[i].call) {
+                fe_var_name = &fe_vars->list[i];
 
-    for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
-        if (call_fe_var[i].call) {
-            fe_var_name = &fe_vars->list[i];
-
-            if (call_fe_var[i].rw) { // Read variable
-                DEBUGP ("calling %s variable for reading!\n", call_fe_var[i].name);
-                TRY(call_fe_var[i].name, bsmp_read_var(fe_client, fe_var_name, call_fe_var[i].read_val));
-            }
-            else { // write variable
-                //DEBUGP ("calling %s variable for writing with value 0x%x!\n", call_fe_var[i].name,
-                //        *((uint32_t *)call_fe_var[i].write_val));
-                DEBUGP ("calling %s variable for writing with value %f!\n", call_fe_var[i].name,
-                        *((double *)call_fe_var[i].write_val));
-                TRY(call_fe_var[i].name, bsmp_write_var(fe_client, fe_var_name, call_fe_var[i].write_val));
-            }
-        }
-    }
-
-    // Show all results
-    for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
-        if (call_fe_var[i].call && call_fe_var[i].rw == 1) { // Print result
-                                                             // for read variables only
-            read_bsmp_val(&call_fe_var[i]);
-            //printf ("%s: %f\n", call_fe_var[i].name, *((double *)call_fe_var[i].read_val));
-        }
-    }
-
-    // Call specified curves
-    struct bsmp_curve_info *curve;
-    uint8_t *curve_data = NULL;
-    uint32_t curve_data_len;
-    for (i = 0; i < ARRAY_SIZE(call_curve); ++i) {
-        if (call_curve[i].call) {
-            // Requesting curve
-            DEBUGP(C"Requesting curve #%d\n", i);
-
-            curve = &curves->list[i];
-            curve_data = malloc(curve->block_size*curve->nblocks);
-            /* Potential failure can happen here if large buffer is requested!! */
-            TRY("malloc curve data", !curve_data);
-            TRY((call_curve[i].name), bsmp_read_curve(client, curve,
-                        curve_data, &curve_data_len));
-
-            DEBUGP(C" Got %d bytes of curve\n", curve_data_len);
-            if (i == CURVE_ADC_ID)
-                print_curve_16 (curve_data, curve_data_len);
-            else
-                print_curve_32 (curve_data, curve_data_len);
-
-        }
-    }
-
-    // Gnuplot specifics
-    //gnuplot_ctrl *h1;
-    //h1 = gnuplot_init();
-    //gnuplot_setstyle(h1, "lines") ;
-
-    // Poll to infinity the Monit. Functions if called
-    for (i = 0; i < ARRAY_SIZE(call_curve_monit); ++i) {
-        if (call_curve_monit[i].call) {
-            DEBUGP(C"Requesting curve #%d\n", END_CURVE_ID+i);
-            curve = &curves->list[END_CURVE_ID+i];// These are just after the regular functions
-            //curve_data = malloc(curve->block_size*curve->nblocks);
-            while (!_interrupted) {
-                unsigned int j;
-                char curve_name[20];
-                for (j = 0; j < PLOT_BUFFER_LEN && !_interrupted; ++j) { // in 4 * 32-bit words
-                    TRY((call_curve_monit[i].name), bsmp_read_curve(client, curve,
-                                (uint8_t *)(pval_monit_uint32 + j), &curve_data_len));
-
-                    // Output Curve to stdout
-                    printf ("%d %d %d %d\n\r", pval_monit_uint32[j].ch0,
-                                                pval_monit_uint32[j].ch1,
-                                                pval_monit_uint32[j].ch2,
-                                                pval_monit_uint32[j].ch3);
-                    //printf ("%d\n\r", pval_monit_uint32[j].ch0);
-                    fflush(stdout);
-
-                    // Can this update rate cause problems for gnuplot?
-                    usleep (MONIT_POLL_RATE); /* 10 Hz update */
-
+                if (call_fe_var[i].rw) { // Read variable
+                    DEBUGP ("calling %s variable for reading!\n", call_fe_var[i].name);
+                    TRY(call_fe_var[i].name, bsmp_read_var(fe_client, fe_var_name, call_fe_var[i].read_val));
+                }
+                else { // write variable
+                    //DEBUGP ("calling %s variable for writing with value 0x%x!\n", call_fe_var[i].name,
+                    //        *((uint32_t *)call_fe_var[i].write_val));
+                    DEBUGP ("calling %s variable for writing with value %f!\n", call_fe_var[i].name,
+                            *((double *)call_fe_var[i].write_val));
+                    TRY(call_fe_var[i].name, bsmp_write_var(fe_client, fe_var_name, call_fe_var[i].write_val));
                 }
             }
         }
+
+        // Show all results
+        for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
+            if (call_fe_var[i].call && call_fe_var[i].rw == 1) { // Print result
+                // for read variables only
+                read_bsmp_val(&call_fe_var[i]);
+                //printf ("%s: %f\n", call_fe_var[i].name, *((double *)call_fe_var[i].read_val));
+            }
+        }
     }
 
-    free (curve_data);
-exit_fe_destroy:
-    bsmp_client_destroy(fe_client);
-    DEBUGP("BSMP FE deallocated\n");
-exit_fe_close:
+    if (need_hostname) {
+        struct bsmp_func_info *func;
+        uint8_t func_error;
+
+        // Call all the FPGA functions the user specified with its parameters
+        for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
+            if (call_func[i].call) {
+                func = &funcs->list[i];
+                TRY((call_func[i].name), bsmp_func_execute(client, func,
+                            &func_error, call_func[i].param_in, call_func[i].param_out));
+            }
+        }
+
+        // Show all results
+        for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
+            if (call_func[i].call /*&& *((uint32_t *)call_func[i].param_out) != 0*/) {
+                printf ("%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].param_out));
+            }
+        }
+
+        // Call specified curves
+        struct bsmp_curve_info *curve;
+        uint8_t *curve_data = NULL;
+        uint32_t curve_data_len;
+        for (i = 0; i < ARRAY_SIZE(call_curve); ++i) {
+            if (call_curve[i].call) {
+                // Requesting curve
+                DEBUGP(C"Requesting curve #%d\n", i);
+
+                curve = &curves->list[i];
+                curve_data = malloc(curve->block_size*curve->nblocks);
+                /* Potential failure can happen here if large buffer is requested!! */
+                TRY("malloc curve data", !curve_data);
+                TRY((call_curve[i].name), bsmp_read_curve(client, curve,
+                            curve_data, &curve_data_len));
+
+                DEBUGP(C" Got %d bytes of curve\n", curve_data_len);
+                if (i == CURVE_ADC_ID)
+                    print_curve_16 (curve_data, curve_data_len);
+                else
+                    print_curve_32 (curve_data, curve_data_len);
+
+            }
+        }
+
+        // Poll to infinity the Monit. Functions if called
+        for (i = 0; i < ARRAY_SIZE(call_curve_monit); ++i) {
+            if (call_curve_monit[i].call) {
+                DEBUGP(C"Requesting curve #%d\n", END_CURVE_ID+i);
+                curve = &curves->list[END_CURVE_ID+i];// These are just after the regular functions
+                //curve_data = malloc(curve->block_size*curve->nblocks);
+                while (!_interrupted) {
+                    unsigned int j;
+                    char curve_name[20];
+                    for (j = 0; j < PLOT_BUFFER_LEN && !_interrupted; ++j) { // in 4 * 32-bit words
+                        TRY((call_curve_monit[i].name), bsmp_read_curve(client, curve,
+                                    (uint8_t *)(pval_monit_uint32 + j), &curve_data_len));
+
+                        // Output Curve to stdout
+                        printf ("%d %d %d %d\n\r", pval_monit_uint32[j].ch0,
+                                pval_monit_uint32[j].ch1,
+                                pval_monit_uint32[j].ch2,
+                                pval_monit_uint32[j].ch3);
+                        //printf ("%d\n\r", pval_monit_uint32[j].ch0);
+                        fflush(stdout);
+
+                        // Can this update rate cause problems for gnuplot?
+                        usleep (MONIT_POLL_RATE); /* 10 Hz update */
+
+                    }
+                }
+            }
+        }
+        free (curve_data);
+    }
+
 exit_fpga_destroy:
-    bsmp_client_destroy (client);
+    bsmp_client_destroy(client);
     DEBUGP("BSMP FPGA deallocated\n");
 exit_fpga_close:
-    close (fe_sockfd);
-    DEBUGP("Socket FE closed\n");
-exit_fe_conn:
     close (sockfd);
     DEBUGP("Socket FPGA closed\n");
 exit_fpga_conn:
+exit_fe_destroy:
+    bsmp_client_destroy (fe_client);
+    DEBUGP("BSMP FE deallocated\n");
+exit_fe_close:
+    close (fe_sockfd);
+    DEBUGP("Socket FE closed\n");
+exit_fe_conn:
     free (hostname);
     free (fe_hostname);
     return 0;
