@@ -271,6 +271,10 @@ void print_usage (FILE* stream, int exit_code)
             "                                    [in number of ADC clock cycles]\n"
             "  -p  --setphaseclk  <value>      Sets FPGA switching phase clock to <value>\n"
             "                                    [in number of ADC clock cycles]\n"
+            "  -u  --setwdwon                  Sets FPGA windowing on\n"
+            "  -e  --setwdwoff                 Sets FPGA windowing off\n"
+            "  -n  --setwdwdly    <value>      Sets FPGA windowing delay\n"
+            "                                  [<value> must be between 0 and 500 [ADC clk cycles]]\n"
             "  -q  --setadcclk    <value>      Sets FPGA reference ADC clock to <value> [in Hertz]\n"
             "  -i  --setddsfreq   <value>      Sets FPGA DDS Frequency to <value> [in Hertz]\n"
             "  -l  --setsamples   <number of samples>\n"
@@ -304,6 +308,9 @@ void print_usage (FILE* stream, int exit_code)
             "                                    [in number of ADC clock cycles]\n"
             "  -P  --getphaseclk               Gets FPGA switching phase clock\n"
             "                                    [in number of ADC clock cycles]\n"
+            "  -E  --getwdw                    Gets FPGA windowing state \n"
+            "  -N  --getwdwdly                 Gets FPGA windowing delay\n"
+            "                                  [<value> will be between 0 and 500 [ADC clk cycles]]\n"
             "  -Q  --getadcclk                 Gets FPGA reference ADC clock [in Hertz]\n"
             "  -I  --getddsfreq                Gets FPGA DDS Frequency [in Hertz]\n"
             "  -L  --getsamples                Gets FPGA number of samples of the next acquisition\n"
@@ -339,6 +346,9 @@ static struct option long_options[] =
     {"setfeswoff",      no_argument,         NULL, 'm'},
     {"setdivclk",       required_argument,   NULL, 'd'},
     {"setphaseclk",     required_argument,   NULL, 'p'},
+    {"setwdwon",        no_argument,         NULL, 'u'},
+    {"setwdwoff",       no_argument,         NULL, 'e'},
+    {"setwdwdly",       required_argument,   NULL, 'n'},
     {"setadcclk",       required_argument,   NULL, 'q'},
     {"setddsfreq",      required_argument,   NULL, 'i'},
     {"setsamples",      required_argument,   NULL, 'l'},
@@ -353,6 +363,8 @@ static struct option long_options[] =
     {"getfesw",         no_argument,         NULL, 'G'},
     {"getdivclk",       no_argument,         NULL, 'D'},
     {"getphaseclk",     no_argument,         NULL, 'P'},
+    {"getwdw",          no_argument,         NULL, 'U'},
+    {"getwdwdly",       no_argument,         NULL, 'N'},
     {"getadcclk",       no_argument,         NULL, 'Q'},
     {"getddsfreq",      no_argument,         NULL, 'I'},
     {"getsamples",      no_argument,         NULL, 'L'},
@@ -406,23 +418,33 @@ struct call_func_t {
 #define SET_SW_PHASECLK_NAME    "set_sw_phaseclk"
 #define GET_SW_PHASECLK_ID      14
 #define GET_SW_PHASECLK_NAME    "get_sw_phaseclk"
-#define SET_ADCCLK_ID           15
+#define SET_WDW_ON_ID           15
+#define SET_WDW_ON_NAME         "set_wdw_on"
+#define SET_WDW_OFF_ID          16
+#define SET_WDW_OFF_NAME        "set_wdw_off"
+#define GET_WDW_ID              17
+#define GET_WDW_NAME            "get_wdw"
+#define SET_WDW_DLY_ID          18
+#define SET_WDW_DLY_NAME        "set_wdw_dly"
+#define GET_WDW_DLY_ID          19
+#define GET_WDW_DLY_NAME        "get_wdw_dly"
+#define SET_ADCCLK_ID           20
 #define SET_ADCCLK_NAME         "set_adc_clk"
-#define GET_ADCCLK_ID           16
+#define GET_ADCCLK_ID           21
 #define GET_ADCCLK_NAME         "get_adc_clk"
-#define SET_DDSFREQ_ID          17
+#define SET_DDSFREQ_ID          22
 #define SET_DDSFREQ_NAME        "set_dds_freq"
-#define GET_DDSFREQ_ID          18
+#define GET_DDSFREQ_ID          23
 #define GET_DDSFREQ_NAME        "get_dds_freq"
-#define SET_ACQ_PARAM_ID        19
+#define SET_ACQ_PARAM_ID        24
 #define SET_ACQ_PARAM_NAME      "set_acq_param"
-#define GET_ACQ_SAMPLES_ID      20
+#define GET_ACQ_SAMPLES_ID      25
 #define GET_ACQ_SAMPLES_NAME    "get_acq_samples"
-#define GET_ACQ_CHAN_ID         21
+#define GET_ACQ_CHAN_ID         26
 #define GET_ACQ_CHAN_NAME       "get_acq_chan"
-#define SET_ACQ_START_ID        22
+#define SET_ACQ_START_ID        27
 #define SET_ACQ_START_NAME      "set_acq_start"
-#define END_ID                  23
+#define END_ID                  28
 
 static struct call_func_t call_func[END_ID] =
 {
@@ -441,6 +463,11 @@ static struct call_func_t call_func[END_ID] =
     {GET_SW_DIVCLK_NAME         , 0, {0}, {0}},
     {SET_SW_PHASECLK_NAME       , 0, {0}, {0}},
     {GET_SW_PHASECLK_NAME       , 0, {0}, {0}},
+    {SET_WDW_ON_NAME            , 0, {0}, {0}},
+    {SET_WDW_OFF_NAME           , 0, {0}, {0}},
+    {GET_WDW_NAME               , 0, {0}, {0}},
+    {SET_WDW_DLY_NAME           , 0, {0}, {0}},
+    {GET_WDW_DLY_NAME           , 0, {0}, {0}},
     {SET_ADCCLK_NAME            , 0, {0}, {0}},
     {GET_ADCCLK_NAME            , 0, {0}, {0}},
     {SET_DDSFREQ_NAME           , 0, {0}, {0}},
@@ -719,7 +746,7 @@ int main(int argc, char *argv[])
     program_name = argv[0];
 
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:q:i:l:c:gmta:z:XYSJDPQILCB:EFG",
+    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:uen:q:i:l:c:gmta:z:XYSJDPUQILCB:ENFG",
                     long_options, NULL)) != -1)
     {
         // check to see if a single character or long option came through
@@ -800,13 +827,30 @@ int main(int argc, char *argv[])
                 // So, we just divide the clk div here by 2
             case 'd':
                 call_func[SET_SW_DIVCLK_ID].call = 1;
-                *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) (atoi(optarg)/FE_SW_DIV_FACTOR);
+                //*((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) (atoi(optarg)/FE_SW_DIV_FACTOR);
+                *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) (atoi(optarg));
                 need_hostname = 1;
                 break;
                 // Set PHASECLK
             case 'p':
                 call_func[SET_SW_PHASECLK_ID].call = 1;
                 *((uint32_t *)call_func[SET_SW_PHASECLK_ID].param_in) = (uint32_t) atoi(optarg);
+                need_hostname = 1;
+                break;
+                // Set Windowing On
+            case 'u':
+                call_func[SET_WDW_ON_ID].call = 1;
+                need_hostname = 1;
+                break;
+                // Set Windowing Off
+            case 'e':
+                call_func[SET_WDW_OFF_ID].call = 1;
+                need_hostname = 1;
+                break;
+                // Set Windowing delay
+            case 'n':
+                call_func[SET_WDW_DLY_ID].call = 1;
+                *((uint32_t *)call_func[SET_WDW_DLY_ID].param_in) = (uint32_t) atoi(optarg);
                 need_hostname = 1;
                 break;
                 // Set ADCCLK
@@ -890,6 +934,16 @@ int main(int argc, char *argv[])
                 // Get PHASECLK
             case 'P':
                 call_func[GET_SW_PHASECLK_ID].call = 1;
+                need_hostname = 1;
+                break;
+                // Get Windowing delay
+            case 'N':
+                call_func[GET_WDW_DLY_ID].call = 1;
+                need_hostname = 1;
+                break;
+                // Get Windopwing State
+            case 'U':
+                call_func[GET_WDW_ID].call = 1;
                 need_hostname = 1;
                 break;
                 // Get ADCCLK
