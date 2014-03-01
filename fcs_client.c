@@ -827,8 +827,7 @@ int main(int argc, char *argv[])
                 // So, we just divide the clk div here by 2
             case 'd':
                 call_func[SET_SW_DIVCLK_ID].call = 1;
-                //*((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) (atoi(optarg)/FE_SW_DIV_FACTOR);
-                *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) (atoi(optarg));
+                *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) (atoi(optarg)/FE_SW_DIV_FACTOR);
                 need_hostname = 1;
                 break;
                 // Set PHASECLK
