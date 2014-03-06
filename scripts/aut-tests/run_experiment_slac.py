@@ -1,20 +1,18 @@
 #!/usr/bin/python3
 
 # Only for debugging
-fpga_hostname = 'localhost'
-rffe_hostname = '10.0.18.200'
-data_filename = 'russo1.txt'
-input_metadata_filename = 'template.metadata'
-datapath = 'adc'
+#fpga_hostname = 'localhost'
+#rffe_hostname = '10.0.18.200'
+#data_filename = 'data.txt'
+#input_metadata_filename = 'template.metadata'
+#datapath = 'adc'
 
-### FIXME: delete all above content - uncomment the block below
-
-#import sys
-#fpga_hostname = sys.argv[0]
-#rffe_hostname = sys.argv[1]
-#data_filename = sys.argv[2]
-#input_metadata_filename = sys.argv[3]
-#datapath = sys.argv[4]
+import sys
+fpga_hostname = sys.argv[1]
+rffe_hostname = sys.argv[2]
+data_filename = sys.argv[3]
+input_metadata_filename = sys.argv[4]
+datapath = sys.argv[5]
 
 # Metadata file is placed in the same path and filename as the data file but with
 # different extension (.metadata)
@@ -34,7 +32,6 @@ bpm_Ky = metadata.options['bpm_Ky']
 rffe_switching = metadata.options['rffe_switching']
 dsp_sausaging = metadata.options['dsp_sausaging']
 deswitching_phase_offset = str(int(metadata.options['dsp_deswitching_phase']) - int(metadata.options['dsp_switching_phase']))
-dsp_sausaging_phase = metadata.options['dsp_sausaging_phase']
 rffe_att1 = metadata.options['rffe_att1']
 rffe_att2 = metadata.options['rffe_att2']
 
@@ -53,7 +50,7 @@ elif datapath == 'fofb':
 
 import subprocess
 # Run FPGA configuration commands
-subprocess.Popen(['fcs_client', '--setdivclk', dsp_switching_frequency_ratio, '--setkx', bpm_Kx, '--setky', bpm_Ky, '--setphaseclk', deswitching_phase_offset, '--setsw' + rffe_switching, '--setwdw' + dsp_sausaging, '--setwdwdly', dsp_sausaging_phase, '--setsamples', acq_npts, '--setchan', acq_channel, '--setfpgahostname', fpga_hostname])
+subprocess.Popen(['fcs_client', '--setdivclk', dsp_switching_frequency_ratio, '--setkx', bpm_Kx, '--setky', bpm_Ky, '--setphaseclk', deswitching_phase_offset, '--setsw' + rffe_switching, '--setwdw' + dsp_sausaging, '--setsamples', acq_npts, '--setchan', acq_channel, '--setfpgahostname', fpga_hostname])
 
 # Run RFFE configuration commands
 subprocess.Popen(['fcs_client', '--setfesw' + rffe_switching, '--setfeatt1', rffe_att1, '--setfeatt2', rffe_att2, '--setrffehostname', rffe_hostname])

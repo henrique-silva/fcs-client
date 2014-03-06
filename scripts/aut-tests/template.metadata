@@ -36,7 +36,6 @@ data_file_structure = bpm_amplitudes
 data_general_description = Sirius BPM tests at SPEAR3/SSRL/SLAC, March 2014
 dsp_deswitching_phase = 0
 dsp_sausaging_window = tukey, 0.1
-dsp_sausaging_phase = 0
 dsp_switching_frequency_ratio = 1000
 dsp_switching_phase = 0
 dsp_firmware_version = XXXXXXXXXX
