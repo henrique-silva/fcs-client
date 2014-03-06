@@ -36,7 +36,7 @@ revision.o: revision.c revision.h
 install:
 	mkdir -p $(INSTALL_DIR)
 	cp fcs_client $(INSTALL_DIR)
-	ln -s $(INSTALL_DIR)/fcs_client /usr/local/bin/
+	ln -sf $(INSTALL_DIR)/fcs_client /usr/local/bin/
 
 uninstall:
 	rm -f $(INSTALL_DIR)/fcs-client
