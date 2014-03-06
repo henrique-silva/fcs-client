@@ -1,6 +1,6 @@
 #!/bin/bash
 
-./fcs_client -F -o localhost | \
+fcs_client -F -o localhost | \
 	feedgnuplot --lines  \
 	--stream 0.1 \
 	--xlen 1000 \

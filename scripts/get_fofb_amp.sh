@@ -12,8 +12,8 @@ fi
 nsamples=$1
 
 # Set acquisition parameters
-./fcs_client -l $nsamples -c 3 -o localhost 
+fcs_client -l $nsamples -c 3 -o localhost 
 # Start Acquisistion
-./fcs_client -t -o localhost 
+fcs_client -t -o localhost 
 # Retrieve Samples
-./fcs_client -B 3 -o localhost
+fcs_client -B 3 -o localhost

@@ -12,11 +12,11 @@ fi
 nsamples=$1
 
 # Set acquisition parameters
-./fcs_client -l $nsamples -c 2 -o localhost 
+fcs_client -l $nsamples -c 2 -o localhost 
 # Start Acquisistion
-./fcs_client -t -o localhost 
+fcs_client -t -o localhost 
 # Retrieve Samples
-./fcs_client -B 2 -o localhost | \
+fcs_client -B 2 -o localhost | \
 	feedgnuplot --lines \
 	--title 'TBT Position Data' \
 	--ylabel 'Position Data [nm]' \
