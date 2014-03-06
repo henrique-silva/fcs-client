@@ -15,6 +15,7 @@
 #include <signal.h>
 
 #include "fcs_client.h"
+#include "revision.h"
 #include "debug.h"
 
 #define C "CLIENT: "
@@ -249,6 +250,9 @@ int bpm_fe_recv(uint8_t *data, uint32_t *count)
 
 void print_usage (FILE* stream, int exit_code)
 {
+    fprintf (stream, "FCS Client program\n");
+    fprintf (stream, "Git commit ID: %s.\n", build_revision);
+    fprintf (stream, "Build date: %s.\n\n", build_date);
     fprintf (stream, "Usage:  %s options \n", program_name);
     fprintf (stream,
             "  -h  --help                      Display this usage information.\n"
