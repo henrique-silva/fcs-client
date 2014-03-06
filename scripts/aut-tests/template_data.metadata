@@ -1,0 +1,52 @@
+# Filled manually
+adc_signal_carrier_frequency = 499640000 Hz
+adc_signal_source = rffe
+beam_bunch_length = 10 ps
+beam_current = 250 mA
+beam_fill = 80%
+beam_orbit_correction = off
+beam_pattern = multibunch
+bpm_cables_delay_a = 0 ps
+bpm_cables_delay_b = 10 ps
+bpm_cables_delay_c = 5 ps
+bpm_cables_delay_d = 20 ps
+dsp_sausaging = on
+rffe_att1 = 10 dB
+rffe_att2 = 20 dB
+rffe_board_version = rffe_v2_476MHz
+rffe_board_serialnumber = xxxxxxxxxxxx
+rffe_signal_power = -10 dBm
+rffe_signal_source = beam
+rffe_switching = on
+
+adc_board_serialnumber = xxxxxxxxxxxx
+adc_board_version = fmc130_v1_passive_clk_distribution
+adc_clock_source = external
+adc_clock_freq_offset = 0 ppm
+adc_sampling_harmonic = 85
+beam_harmonic_number = 372
+bpm_type = button, 5 mm
+bpm_cables = LMR195
+bpm_name = AMP01A
+bpm_Kx = 10000000 mm
+bpm_Ky = 10000000 mm
+data_signature_method = md5
+data_file_format = ascii
+data_file_structure = bpm_amplitudes
+data_general_description = Sirius BPM tests at SPEAR3/SSRL/SLAC, March 2014
+dsp_deswitching_phase = 0
+dsp_sausaging_window = tukey, 0.1
+dsp_sausaging_phase = 0
+dsp_switching_frequency_ratio = 1000
+dsp_switching_phase = 0
+dsp_firmware_version = XXXXXXXXXX
+location = SPEAR3, SSRL, SLAC, Menlo Park, CA, USA
+location_timezone = PST
+rffe_signal_carrier_frequency = 499640000 Hz
+
+# Filled automatically by the 'run_experiment_slac.py' script
+data_original_filename = template_data.txt
+data_signature = d41d8cd98f00b204e9800998ecf8427e
+data_signature_method = md5
+dsp_data_rate_decim_factor = 1
+timestamp_start = 2014-03-06T13:29:41.952998656Z
