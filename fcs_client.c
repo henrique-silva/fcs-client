@@ -606,7 +606,7 @@ int print_curve_16 (uint8_t *curve_data, uint32_t len)
 {
     unsigned int i;
     for (i = 0; i < len/(SIZE_16_BYTES*NUM_CHANNELS); ++i) {
-        printf ("%d %d %d %d\n\r",
+        printf ("%d %d %d %d\n",
                 *((int16_t *)curve_data + i*NUM_CHANNELS),
                 *((int16_t *)curve_data + i*NUM_CHANNELS+1),
                 *((int16_t *)curve_data + i*NUM_CHANNELS+2),
@@ -624,7 +624,7 @@ int print_curve_32 (uint8_t *curve_data, uint32_t len)
     //    printf ("%d\n", *((int32_t *)((uint8_t *)curve_data + i*4)));
     //}
     for (i = 0; i < len/(SIZE_32_BYTES*NUM_CHANNELS); ++i) {
-        printf ("%d %d %d %d\n\r",
+        printf ("%d %d %d %d\n",
                 *((int32_t *)curve_data + i*NUM_CHANNELS),
                 *((int32_t *)curve_data + i*NUM_CHANNELS+1),
                 *((int32_t *)curve_data + i*NUM_CHANNELS+2),
@@ -1277,7 +1277,7 @@ int main(int argc, char *argv[])
                                     (uint8_t *)(pval_monit_uint32 + j), &curve_data_len));
 
                         // Output Curve to stdout
-                        printf ("%d %d %d %d\n\r", pval_monit_uint32[j].ch0,
+                        printf ("%d %d %d %d\n", pval_monit_uint32[j].ch0,
                                 pval_monit_uint32[j].ch1,
                                 pval_monit_uint32[j].ch2,
                                 pval_monit_uint32[j].ch3);

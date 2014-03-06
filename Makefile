@@ -25,11 +25,13 @@ fcs_client_OBJS = fcs_client.o debug.o revision.o
 all: $(OUT)
 
 $(OUT): $$($$@_OBJS)
-	$(CC) $(CFLAGS) -DGIT_REVISION=\"$(REVISION)\" -c revision.c
-	$(CC) $(CFLAGS) $(LFLAGS) $(INCLUDE_DIRS) -o $@ $^ revision.o $(LDFLAGS)
+	$(CC) $(CFLAGS) $(LFLAGS) $(INCLUDE_DIRS) -o $@ $^ $(LDFLAGS)
 
 %.o : %.c %.h
 	$(CC) $(CFLAGS) $(INCLUDE_DIRS) -c $< -o $@
+
+revision.o: revision.c revision.h
+	$(CC) $(CFLAGS) -DGIT_REVISION=\"$(REVISION)\" -c revision.c
 
 install:
 	mkdir -p $(INSTALL_DIR)
