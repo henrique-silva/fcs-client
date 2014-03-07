@@ -388,12 +388,27 @@ static struct option long_options[] =
     {NULL, 0, NULL, 0}
 };
 
-struct call_func_t {
+typedef enum _var_type {
+    UINT8_T = 0,
+    UINT16_T,
+    UINT32_T,
+    UINT64_T,
+    FLOAT_T,
+    DOUBLE_T
+} var_type;
+
+typedef var_type func_type;
+
+typedef struct _call_var_t {
     const char *name;
     int call;
-    uint8_t param_in[sizeof(uint32_t)*2]; // 2 32-bits variables
-    uint8_t param_out[sizeof(uint32_t)]; // 1 32-bits variable
-};
+    int rw;                                 // 1 is read and 0 is write
+    var_type type;                          // Just for printing the return value
+    uint8_t write_val[sizeof(uint32_t)*2];  // 2 32-bits variables
+    uint8_t read_val[sizeof(uint32_t)*2];   // 2 32-bits variable
+} call_var_t;
+
+typedef call_var_t call_func_t;
 
 /***************************************************/
 /*************** General Functions *****************/
@@ -457,36 +472,36 @@ struct call_func_t {
 #define SET_ACQ_START_NAME      "set_acq_start"
 #define END_ID                  28
 
-static struct call_func_t call_func[END_ID] =
+static call_func_t call_func[END_ID] =
 {
-    {BLINK_FUNC_NAME            , 0, {0}, {0}},
-    {RESET_FUNC_NAME            , 0, {0}, {0}},
-    {SET_KX_NAME                , 0, {0}, {0}},
-    {GET_KX_NAME                , 0, {0}, {0}},
-    {SET_KY_NAME                , 0, {0}, {0}},
-    {GET_KY_NAME                , 0, {0}, {0}},
-    {SET_KSUM_NAME              , 0, {0}, {0}},
-    {GET_KSUM_NAME              , 0, {0}, {0}},
-    {SET_SW_ON_NAME             , 0, {0}, {0}},
-    {SET_SW_OFF_NAME            , 0, {0}, {0}},
-    {GET_SW_NAME                , 0, {0}, {0}},
-    {SET_SW_DIVCLK_NAME         , 0, {0}, {0}},
-    {GET_SW_DIVCLK_NAME         , 0, {0}, {0}},
-    {SET_SW_PHASECLK_NAME       , 0, {0}, {0}},
-    {GET_SW_PHASECLK_NAME       , 0, {0}, {0}},
-    {SET_WDW_ON_NAME            , 0, {0}, {0}},
-    {SET_WDW_OFF_NAME           , 0, {0}, {0}},
-    {GET_WDW_NAME               , 0, {0}, {0}},
-    {SET_WDW_DLY_NAME           , 0, {0}, {0}},
-    {GET_WDW_DLY_NAME           , 0, {0}, {0}},
-    {SET_ADCCLK_NAME            , 0, {0}, {0}},
-    {GET_ADCCLK_NAME            , 0, {0}, {0}},
-    {SET_DDSFREQ_NAME           , 0, {0}, {0}},
-    {GET_DDSFREQ_NAME           , 0, {0}, {0}},
-    {SET_ACQ_PARAM_NAME         , 0, {0}, {0}},
-    {GET_ACQ_SAMPLES_NAME       , 0, {0}, {0}},
-    {GET_ACQ_CHAN_NAME          , 0, {0}, {0}},
-    {SET_ACQ_START_NAME         , 0, {0}, {0}}
+    {BLINK_FUNC_NAME            , 0, 0, UINT32_T, {0}, {0}},
+    {RESET_FUNC_NAME            , 0, 0, UINT32_T, {0}, {0}},
+    {SET_KX_NAME                , 0, 0, UINT32_T, {0}, {0}},
+    {GET_KX_NAME                , 0, 1, UINT32_T, {0}, {0}},
+    {SET_KY_NAME                , 0, 0, UINT32_T, {0}, {0}},
+    {GET_KY_NAME                , 0, 1, UINT32_T, {0}, {0}},
+    {SET_KSUM_NAME              , 0, 0, UINT32_T, {0}, {0}},
+    {GET_KSUM_NAME              , 0, 1, UINT32_T, {0}, {0}},
+    {SET_SW_ON_NAME             , 0, 0, UINT32_T, {0}, {0}},
+    {SET_SW_OFF_NAME            , 0, 0, UINT32_T, {0}, {0}},
+    {GET_SW_NAME                , 0, 1, UINT32_T, {0}, {0}},
+    {SET_SW_DIVCLK_NAME         , 0, 0, UINT32_T, {0}, {0}},
+    {GET_SW_DIVCLK_NAME         , 0, 1, UINT32_T, {0}, {0}},
+    {SET_SW_PHASECLK_NAME       , 0, 0, UINT32_T, {0}, {0}},
+    {GET_SW_PHASECLK_NAME       , 0, 1, UINT32_T, {0}, {0}},
+    {SET_WDW_ON_NAME            , 0, 0, UINT32_T, {0}, {0}},
+    {SET_WDW_OFF_NAME           , 0, 0, UINT32_T, {0}, {0}},
+    {GET_WDW_NAME               , 0, 1, UINT32_T, {0}, {0}},
+    {SET_WDW_DLY_NAME           , 0, 0, UINT32_T, {0}, {0}},
+    {GET_WDW_DLY_NAME           , 0, 1, UINT32_T, {0}, {0}},
+    {SET_ADCCLK_NAME            , 0, 0, UINT32_T, {0}, {0}},
+    {GET_ADCCLK_NAME            , 0, 1, UINT32_T, {0}, {0}},
+    {SET_DDSFREQ_NAME           , 0, 0, UINT32_T, {0}, {0}},
+    {GET_DDSFREQ_NAME           , 0, 1, UINT32_T, {0}, {0}},
+    {SET_ACQ_PARAM_NAME         , 0, 0, UINT32_T, {0}, {0}},
+    {GET_ACQ_SAMPLES_NAME       , 0, 1, UINT32_T, {0}, {0}},
+    {GET_ACQ_CHAN_NAME          , 0, 1, UINT32_T, {0}, {0}},
+    {SET_ACQ_START_NAME         , 0, 0, UINT32_T, {0}, {0}}
 };
 
 /***************************************************/
@@ -499,27 +514,27 @@ static struct call_func_t call_func[END_ID] =
 #define CURVE_MONIT_POS_NAME    "monit_pos"
 #define END_MONIT_ID            2
 
-static struct call_func_t call_curve_monit[END_MONIT_ID] =
+static call_func_t call_curve_monit[END_MONIT_ID] =
 {
-    {CURVE_MONIT_AMP_NAME       , 0, {0}, {0}},
-    {CURVE_MONIT_POS_NAME       , 0, {0}, {0}}
+    {CURVE_MONIT_AMP_NAME       , 0, 1, UINT32_T, {0}, {0}},
+    {CURVE_MONIT_POS_NAME       , 0, 1, UINT32_T, {0}, {0}}
 };
 
 typedef struct _str_idx_t {
     char *str_idx[4]; // four strings of four chars
 } str_idx_t;
 
-static str_idx_t monit_str_idx[END_MONIT_ID] = {
-    {{"MONIT_AMP_A", "MONIT_AMP_B", "MONIT_AMP_C", "MONIT_AMP_D"}},
-    {{"MONIT_POS_X", "MONIT_POS_Y", "MONIT_POS_Q", "MONIT_POS_SUM"}}
-};
+//static str_idx_t monit_str_idx[END_MONIT_ID] = {
+//    {{"MONIT_AMP_A", "MONIT_AMP_B", "MONIT_AMP_C", "MONIT_AMP_D"}},
+//    {{"MONIT_POS_X", "MONIT_POS_Y", "MONIT_POS_Q", "MONIT_POS_SUM"}}
+//};
 
 #define ANY_CURVE_TYPE_ID        0
 #define ANY_CURVE_TYPE_NAME      "any_type_curve"
 #define END_CURVE_TYPE_ID        1
 
-static struct call_func_t call_curve_type[END_CURVE_TYPE_ID] = {
-    {ANY_CURVE_TYPE_NAME        , 0, {0}, {0}}
+static call_func_t call_curve_type[END_CURVE_TYPE_ID] = {
+    {ANY_CURVE_TYPE_NAME        , 0, 1, UINT32_T, {0}, {0}}
 };
 
 /***************************************************/
@@ -540,34 +555,34 @@ static struct call_func_t call_curve_type[END_CURVE_TYPE_ID] = {
 #define CURVE_FOFBPOS_NAME      "fofbpos_curve"
 #define END_CURVE_ID            5
 
-static struct call_func_t call_curve[END_CURVE_ID] = {
-    {CURVE_ADC_NAME             , 0, {0}, {0}},
-    {CURVE_TBTAMP_NAME          , 0, {0}, {0}},
-    {CURVE_TBTPOS_NAME          , 0, {0}, {0}},
-    {CURVE_FOFBAMP_NAME         , 0, {0}, {0}},
-    {CURVE_FOFBPOS_NAME         , 0, {0}, {0}}
+static call_func_t call_curve[END_CURVE_ID] = {
+    {CURVE_ADC_NAME             , 0, 1, UINT32_T, {0}, {0}},
+    {CURVE_TBTAMP_NAME          , 0, 1, UINT32_T, {0}, {0}},
+    {CURVE_TBTPOS_NAME          , 0, 1, UINT32_T, {0}, {0}},
+    {CURVE_FOFBAMP_NAME         , 0, 1, UINT32_T, {0}, {0}},
+    {CURVE_FOFBPOS_NAME         , 0, 1, UINT32_T, {0}, {0}}
 };
 
 /***************************************************/
 /*************** RFFE Functions * ******************/
 /***************************************************/
-enum var_type {
-    UINT8_T = 0,
-    UINT16_T,
-    UINT32_T,
-    UINT64_T,
-    FLOAT_T,
-    DOUBLE_T
-};
+////enum var_type {
+////    UINT8_T = 0,
+////    UINT16_T,
+////    UINT32_T,
+////    UINT64_T,
+////    FLOAT_T,
+////    DOUBLE_T
+////};
 
-struct call_var_t {
-    const char *name;
-    int call;
-    int rw;                               // 1 is read and 0 is write
-    enum var_type type;
-    uint8_t write_val[sizeof(uint32_t)*2]; // 2 32-bits variables
-    uint8_t read_val[sizeof(uint32_t)*2]; // 2 32-bits variable
-};
+////struct call_var_t {
+////    const char *name;
+////    int call;
+////    int rw;                               // 1 is read and 0 is write
+////    enum var_type type;
+////    uint8_t write_val[sizeof(uint32_t)*2]; // 2 32-bits variables
+////    uint8_t read_val[sizeof(uint32_t)*2]; // 2 32-bits variable
+////};
 
 #define SET_FE_SW_ON_ID         0
 #define SET_FE_SW_ON_NAME       "getset_fe_sw"
@@ -583,7 +598,7 @@ struct call_var_t {
 #define GETSET_FE_ATT2_NAME     "getset_fe_att2"
 #define END_FE_ID               3
 
-static struct call_var_t call_fe_var[END_FE_ID] = {
+static call_var_t call_fe_var[END_FE_ID] = {
     {SET_FE_SW_ON_NAME          , 0, 0, UINT8_T, {0}, {0}}, // The set "sw off" and "get sw"
     // are on the same ID in FE server
     //{GETSET_FE_SW_LVL_NAME      , 0, 0, UINT8_T, {0}, {0}}, // The set "sw lvl" and get "sw lvl"
@@ -641,40 +656,45 @@ int print_curve_32 (uint8_t *curve_data, uint32_t len)
     return 0;
 }
 
-int read_bsmp_val(struct call_var_t *fe_var)
+int read_bsmp_val(call_var_t *fe_var)
 {
     // Find out with type of varible this is and printf
     // the correct string specifier
     switch (fe_var->type) {
         case UINT8_T:
-            printf ("%s: %" PRIu8 "\n", fe_var->name, *((uint8_t *)fe_var->read_val));
+            printf ("%" PRIu8 "\n", *((uint8_t *)fe_var->read_val));
             break;
 
         case UINT16_T:
-            printf ("%s: %" PRIu16 "\n", fe_var->name, *((uint16_t *)fe_var->read_val));
+            printf ("%" PRIu16 "\n", *((uint16_t *)fe_var->read_val));
             break;
 
         case UINT32_T:
-            printf ("%s: %" PRIu32 "\n", fe_var->name, *((uint32_t *)fe_var->read_val));
+            printf ("%" PRIu32 "\n", *((uint32_t *)fe_var->read_val));
             break;
 
         case UINT64_T:
-            printf ("%s: %" PRIu64 "\n", fe_var->name, *((uint64_t *)fe_var->read_val));
+            printf ("%" PRIu64 "\n", *((uint64_t *)fe_var->read_val));
             break;
 
         case FLOAT_T:
-            printf ("%s: %f\n", fe_var->name, *((float *)fe_var->read_val));
+            printf ("%f\n", *((float *)fe_var->read_val));
             break;
 
         case DOUBLE_T:
-            printf ("%s: %f\n", fe_var->name, *((double *)fe_var->read_val));
+            printf ("%f\n", *((double *)fe_var->read_val));
             break;
 
         default:
-            printf ("%s: %" PRIu8 "\n", fe_var->name, *((uint8_t *)fe_var->read_val));
+            printf ("%" PRIu8 "\n", *((uint8_t *)fe_var->read_val));
     }
 
     return 0;
+}
+
+int read_bsmp_func(call_func_t *func)
+{
+    return read_bsmp_val((call_var_t *)func);
 }
 
 /***************************************************/
@@ -789,19 +809,19 @@ int main(int argc, char *argv[])
                 // Set KX
             case 'x':
                 call_func[SET_KX_ID].call = 1;
-                *((uint32_t *)call_func[SET_KX_ID].param_in) = (uint32_t) atoi(optarg);
+                *((uint32_t *)call_func[SET_KX_ID].write_val) = (uint32_t) atoi(optarg);
                 need_hostname = 1;
                 break;
                 // Set KY
             case 'y':
                 call_func[SET_KY_ID].call = 1;
-                *((uint32_t *)call_func[SET_KY_ID].param_in) = (uint32_t) atoi(optarg);
+                *((uint32_t *)call_func[SET_KY_ID].write_val) = (uint32_t) atoi(optarg);
                 need_hostname = 1;
                 break;
                 // Set Ksum
             case 's':
                 call_func[SET_KSUM_ID].call = 1;
-                *((uint32_t *)call_func[SET_KSUM_ID].param_in) = (uint32_t) atoi(optarg);
+                *((uint32_t *)call_func[SET_KSUM_ID].write_val) = (uint32_t) atoi(optarg);
                 need_hostname = 1;
                 break;
                 // Set FPGA Deswitching On
@@ -838,13 +858,13 @@ int main(int argc, char *argv[])
                 // So, we just divide the clk div here by 2
             case 'd':
                 call_func[SET_SW_DIVCLK_ID].call = 1;
-                *((uint32_t *)call_func[SET_SW_DIVCLK_ID].param_in) = (uint32_t) (atoi(optarg)/FE_SW_DIV_FACTOR);
+                *((uint32_t *)call_func[SET_SW_DIVCLK_ID].write_val) = (uint32_t) (atoi(optarg)/FE_SW_DIV_FACTOR);
                 need_hostname = 1;
                 break;
                 // Set PHASECLK
             case 'p':
                 call_func[SET_SW_PHASECLK_ID].call = 1;
-                *((uint32_t *)call_func[SET_SW_PHASECLK_ID].param_in) = (uint32_t) atoi(optarg);
+                *((uint32_t *)call_func[SET_SW_PHASECLK_ID].write_val) = (uint32_t) atoi(optarg);
                 need_hostname = 1;
                 break;
                 // Set Windowing On
@@ -860,25 +880,25 @@ int main(int argc, char *argv[])
                 // Set Windowing delay
             case 'n':
                 call_func[SET_WDW_DLY_ID].call = 1;
-                *((uint32_t *)call_func[SET_WDW_DLY_ID].param_in) = (uint32_t) atoi(optarg);
+                *((uint32_t *)call_func[SET_WDW_DLY_ID].write_val) = (uint32_t) atoi(optarg);
                 need_hostname = 1;
                 break;
                 // Set ADCCLK
             case 'q':
                 call_func[SET_ADCCLK_ID].call = 1;
-                *((uint32_t *)call_func[SET_ADCCLK_ID].param_in) = (uint32_t) atoi(optarg);
+                *((uint32_t *)call_func[SET_ADCCLK_ID].write_val) = (uint32_t) atoi(optarg);
                 need_hostname = 1;
                 break;
                 // Set DDSFREQ
             case 'i':
                 call_func[SET_DDSFREQ_ID].call = 1;
-                *((uint32_t *)call_func[SET_DDSFREQ_ID].param_in) = (uint32_t) atoi(optarg);
+                *((uint32_t *)call_func[SET_DDSFREQ_ID].write_val) = (uint32_t) atoi(optarg);
                 need_hostname = 1;
                 break;
                 // Set Acq Samples
             case 'l':
                 //call_func[SET_ACQ_SAMPLES_ID].call = 1;
-                //*((uint32_t *)call_func[SET_ACQ_SAMPLES_ID].param_in) = (uint32_t) atoi(optarg);
+                //*((uint32_t *)call_func[SET_ACQ_SAMPLES_ID].write_val) = (uint32_t) atoi(optarg);
                 acq_samples_set = 1;
                 acq_samples_val = (uint32_t) atoi(optarg);
                 need_hostname = 1;
@@ -886,7 +906,7 @@ int main(int argc, char *argv[])
                 // Set Acq Chan
             case 'c':
                 //call_func[SET_ACQ_CHAN_ID].call = 1;
-                //*((uint32_t *)call_func[SET_ACQ_CHAN_ID].param_in) = (uint32_t) atoi(optarg);
+                //*((uint32_t *)call_func[SET_ACQ_CHAN_ID].write_val) = (uint32_t) atoi(optarg);
                 acq_chan_set = 1;
                 acq_chan_val = (uint32_t) atoi(optarg);
                 need_hostname = 1;
@@ -992,7 +1012,7 @@ int main(int argc, char *argv[])
             case 'B':
                 call_curve_type[ANY_CURVE_TYPE_ID].call = 1;
                 acq_curve_chan = (uint32_t) atoi(optarg);
-                /**((uint32_t *)call_curve[GET_CURVE_ID].param_in) = (uint32_t) atoi(optarg);*/
+                /**((uint32_t *)call_curve[GET_CURVE_ID].write_val) = (uint32_t) atoi(optarg);*/
                 need_hostname = 1;
                 break;
                 // Get Monit. Amp
@@ -1035,8 +1055,8 @@ int main(int argc, char *argv[])
     // If we are here, we are good with the acquisition parameters
     if (acq_samples_set && acq_chan_set) {
         call_func[SET_ACQ_PARAM_ID].call = 1;
-        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].param_in) = acq_samples_val;
-        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].param_in + 1) = acq_chan_val;
+        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].write_val) = acq_samples_val;
+        *((uint32_t *)call_func[SET_ACQ_PARAM_ID].write_val + 1) = acq_chan_val;
     }
 
     // Check for acq_curve_chan bounds
@@ -1217,10 +1237,11 @@ int main(int argc, char *argv[])
 
         // Show all results
         for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
-            if (call_fe_var[i].call && call_fe_var[i].rw == 1) { // Print result
-                // for read variables only
-                read_bsmp_val(&call_fe_var[i]);
-                //printf ("%s: %f\n", call_fe_var[i].name, *((double *)call_fe_var[i].read_val));
+            if (call_fe_var[i].call /*&& call_fe_var[i].rw == 1*/) { // Print result
+                PRINTV (verbose, "%s: ", call_fe_var[i].name);
+                if (verbose) {
+                    read_bsmp_val(&call_fe_var[i]);
+                }
             }
         }
     }
@@ -1234,14 +1255,18 @@ int main(int argc, char *argv[])
             if (call_func[i].call) {
                 func = &funcs->list[i];
                 TRY((call_func[i].name), bsmp_func_execute(client, func,
-                            &func_error, call_func[i].param_in, call_func[i].param_out));
+                            &func_error, call_func[i].write_val, call_func[i].read_val));
             }
         }
 
         // Show all results
         for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
-            if (call_func[i].call /*&& *((uint32_t *)call_func[i].param_out) != 0*/) {
-                PRINTV (verbose, "%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].param_out));
+            if (call_func[i].call /*&& *((uint32_t *)call_func[i].read_val) != 0*/) {
+                ////PRINTV (verbose, "%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].read_val));
+                PRINTV (verbose, "%s: ", call_func[i].name);
+                if (verbose) {
+                    read_bsmp_func(&call_func[i]);
+                }
             }
         }
 
@@ -1278,7 +1303,6 @@ int main(int argc, char *argv[])
                 //curve_data = malloc(curve->block_size*curve->nblocks);
                 while (!_interrupted) {
                     unsigned int j;
-                    char curve_name[20];
                     for (j = 0; j < PLOT_BUFFER_LEN && !_interrupted; ++j) { // in 4 * 32-bit words
                         TRY((call_curve_monit[i].name), bsmp_read_curve(client, curve,
                                     (uint8_t *)(pval_monit_uint32 + j), &curve_data_len));
