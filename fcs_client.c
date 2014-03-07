@@ -692,9 +692,24 @@ int read_bsmp_val(call_var_t *fe_var)
     return 0;
 }
 
+int read_bsmp_val_v(int verbose, call_var_t *fe_var)
+{
+    PRINTV(verbose, "%s: ", fe_var->name);
+    if (verbose) {
+        read_bsmp_val(fe_var);
+    }
+
+    return 0;
+}
+
 int read_bsmp_func(call_func_t *func)
 {
     return read_bsmp_val((call_var_t *)func);
+}
+
+int read_bsmp_func_v(int verbose, call_func_t *func)
+{
+    return read_bsmp_val_v(verbose, (call_var_t *)func);
 }
 
 /***************************************************/
@@ -1237,10 +1252,12 @@ int main(int argc, char *argv[])
 
         // Show all results
         for (i = 0; i < ARRAY_SIZE(call_fe_var); ++i) {
-            if (call_fe_var[i].call /*&& call_fe_var[i].rw == 1*/) { // Print result
-                PRINTV (verbose, "%s: ", call_fe_var[i].name);
-                if (verbose) {
-                    read_bsmp_val(&call_fe_var[i]);
+            if (call_fe_var[i].call) { // Print result
+                if (call_fe_var[i].rw == 1) { // Read variable always print
+                    read_bsmp_val_v(1, &call_fe_var[i]);
+                }
+                else {
+                    read_bsmp_val_v(verbose, &call_fe_var[i]);
                 }
             }
         }
@@ -1261,11 +1278,12 @@ int main(int argc, char *argv[])
 
         // Show all results
         for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
-            if (call_func[i].call /*&& *((uint32_t *)call_func[i].read_val) != 0*/) {
-                ////PRINTV (verbose, "%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].read_val));
-                PRINTV (verbose, "%s: ", call_func[i].name);
-                if (verbose) {
-                    read_bsmp_func(&call_func[i]);
+            if (call_func[i].call) {
+                if (call_func[i].rw == 1) { // Read function always print
+                    read_bsmp_func_v(1, &call_func[i]);
+                }
+                else {
+                    read_bsmp_func_v(verbose, &call_func[i]);
                 }
             }
         }
