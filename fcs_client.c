@@ -31,6 +31,13 @@
         }\
     }while(0)
 
+#define PRINTV(verbose, fmt, ...)\
+    do {\
+        if (verbose) {\
+            printf (fmt, ## __VA_ARGS__);\
+        }\
+    }while(0)
+
 #define PORT "8080" // the FPGA port client will be connecting to
 #define FE_PORT "6791" // the RFFE port client will be connecting to
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
@@ -1234,7 +1241,7 @@ int main(int argc, char *argv[])
         // Show all results
         for (i = 0; i < ARRAY_SIZE(call_func); ++i) {
             if (call_func[i].call /*&& *((uint32_t *)call_func[i].param_out) != 0*/) {
-                printf ("%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].param_out));
+                PRINTV (verbose, "%s: %d\n", call_func[i].name, *((uint32_t *)call_func[i].param_out));
             }
         }
 
