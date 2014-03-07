@@ -10,6 +10,6 @@ then
 fi
 
 nsamples=$1
-chan=3 # FOFB amplitude channel number
+chan=4 # FOFB position channel number
 
 ./get_raw_data.sh $nsamples $chan

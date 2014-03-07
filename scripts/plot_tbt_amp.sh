@@ -11,12 +11,7 @@ fi
 
 nsamples=$1
 
-# Set acquisition parameters
-fcs_client -l $nsamples -c 1 -o localhost 
-# Start Acquisistion
-fcs_client -t -o localhost 
-# Retrieve Samples
-fcs_client -B 1 -o localhost | \
+./get_tbt_amp.sh $nsamples | \
 	feedgnuplot --lines \
 	--title 'TBT Amplitude Data' \
 	--ylabel 'Amplitude data [arb. units]' \

@@ -11,12 +11,7 @@ fi
 
 nsamples=$1
 
-# Set acquisition parameters
-fcs_client -l $nsamples -c 4 -o localhost 
-# Start Acquisistion
-fcs_client -t -o localhost 
-# Retrieve Samples
-fcs_client -B 4 -o localhost | \
+./get_fofb_pos.sh $nsamples | \
 	feedgnuplot --lines \
 	--title 'FOFB Position Data' \
 	--ylabel 'Position data [nm]' \

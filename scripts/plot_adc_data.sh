@@ -11,12 +11,7 @@ fi
 
 nsamples=$1
 
-# Set acquisition parameters
-fcs_client -l $nsamples -c 0 -o localhost 
-# Start Acquisistion
-fcs_client -t -o localhost 
-# Retrieve Samples
-fcs_client -B 0 -o localhost | \
+./get_adc_data.sh $nsamples | \
 	feedgnuplot --lines \
 	--title 'ADC Data' \
 	--ylabel 'ADC counts [arb. units]' \
