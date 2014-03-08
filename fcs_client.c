@@ -285,29 +285,29 @@ void print_usage (FILE* stream, int exit_code)
             "  -u  --setwdwon                  Sets FPGA windowing on\n"
             "  -e  --setwdwoff                 Sets FPGA windowing off\n"
             "  -n  --setwdwdly    <value>      Sets FPGA windowing delay\n"
-            "                                  [<value> must be between 0 and 500 [ADC clk cycles]]\n"
+            "                                    [<value> must be between 0 and 500 [ADC clk cycles]]\n"
             "  -q  --setadcclk    <value>      Sets FPGA reference ADC clock to <value> [in Hertz]\n"
             "  -i  --setddsfreq   <value>      Sets FPGA DDS Frequency to <value> [in Hertz]\n"
             "  -l  --setsamples   <number of samples>\n"
             "                                  Sets FPGA Acquisition parameters\n"
-            "                                  [<number of samples> must be between 4 and\n"
+            "                                    [<number of samples> must be between 4 and\n"
             "                                  ??? (TBD) \n"
             "  -c  --setchan      <channel> \n"
             "                                  Sets FPGA Acquisition parameters\n"
-            "                                  [<channel> must be one of the following:\n"
+            "                                    [<channel> must be one of the following:\n"
             "                                  0 -> ADC; 1-> TBT Amp; 2 -> TBT Pos\n"
             "                                  3 -> FOFB Amp; 4-> FOFB Pos]\n"
             "  -t  --startacq                  Starts FPGA acquistion with the previous parameters\n"
             "  -a  --setfeatt1    <value>      Sets the RFFE Attenuator 1 to <value>\n"
-            "                                  [<value> must be between 0 and 31.5 [dB]\n"
-            "                                   with 0.5 step. Invalid attenuation values\n"
-            "                                   will be rounded down to the nearest valid\n"
-            "                                   value]\n"
+            "                                    [<value> must be between 0 and 31.5 [dB]\n"
+            "                                     with 0.5 step. Invalid attenuation values\n"
+            "                                     will be rounded down to the nearest valid\n"
+            "                                     value]\n"
             "  -z  --setfeatt2    <value>      Sets the RFFE Attenuator 2 to <value>\n"
-            "                                  [<value> must be between 0 and 31.5 [dB]\n"
-            "                                   with 0.5 step. Invalid attenuation values\n"
-            "                                   will be rounded down to the nearest valid\n"
-            "                                   value]\n"
+            "                                    [<value> must be between 0 and 31.5 [dB]\n"
+            "                                     with 0.5 step. Invalid attenuation values\n"
+            "                                     will be rounded down to the nearest valid\n"
+            "                                     value]\n"
             "  -X  --getkx                     Gets parameter Kx [nm] in UFIX25_0 format\n"
             "  -Y  --getky                     Gets parameter Ky [nm] in UFIX25_0 format\n"
             "  -S  --getksum                   Gets parameter Ksum in FIX25_24 format\n"
@@ -315,6 +315,10 @@ void print_usage (FILE* stream, int exit_code)
             "                                    [0x1 is no switching and 0x3 is switching]\n"
             "  -G  --getfesw                   Gets RFFE switching state \n"
             "                                    [0x1 is no switching and 0x3 is switching]\n"
+            "  -A  --getfeatt1                 Gets RFFE Atenuattor 1 value\n"
+            "                                    [<value> is between 0 and 31.5 [dB]\n"
+            "  -Z  --getfeatt2                 Gets RFFE Attenuator 2 value\n"
+            "                                    [<value> is between 0 and 31.5 [dB]\n"
             "  -D  --getdivclk                 Gets FPGA switching divider clock value\n"
             "                                    [in number of ADC clock cycles]\n"
             "  -P  --getphaseclk               Gets FPGA switching phase clock\n"
@@ -372,6 +376,8 @@ static struct option long_options[] =
     {"getksum",         no_argument,         NULL, 'S'},
     {"getsw",           no_argument,         NULL, 'J'},
     {"getfesw",         no_argument,         NULL, 'G'},
+    {"getfeatt1",       no_argument,         NULL, 'A'},
+    {"getfeatt2",       no_argument,         NULL, 'Z'},
     {"getdivclk",       no_argument,         NULL, 'D'},
     {"getphaseclk",     no_argument,         NULL, 'P'},
     {"getwdw",          no_argument,         NULL, 'U'},
@@ -380,8 +386,6 @@ static struct option long_options[] =
     {"getddsfreq",      no_argument,         NULL, 'I'},
     {"getsamples",      no_argument,         NULL, 'L'},
     {"getchan",         no_argument,         NULL, 'C'},
-    {"getfeatt1",       no_argument,         NULL, 'A'},
-    {"getfeatt2",       no_argument,         NULL, 'Z'},
     {"getcurve",        required_argument,   NULL, 'B'},
     {"getmonitamp",     no_argument,         NULL, 'E'},
     {"getmonitpos",     no_argument,         NULL, 'F'},
