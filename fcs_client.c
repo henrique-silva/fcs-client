@@ -319,6 +319,10 @@ void print_usage (FILE* stream, int exit_code)
             "                                    [<value> is between 0 and 31.5 [dB]\n"
             "  -Z  --getfeatt2                 Gets RFFE Attenuator 2 value\n"
             "                                    [<value> is between 0 and 31.5 [dB]\n"
+            "  -M  --getfetemp1                Gets RFFE Temparature 1 (near AC channels)\n"
+            "                                    [in degrees celsius (*C)]\n"
+            "  -K  --getfetemp2                Gets RFFE temperature 2 (near BD channels)\n"
+            "                                    [in degrees celsius (*C)]\n"
             "  -D  --getdivclk                 Gets FPGA switching divider clock value\n"
             "                                    [in number of ADC clock cycles]\n"
             "  -P  --getphaseclk               Gets FPGA switching phase clock\n"
@@ -330,16 +334,16 @@ void print_usage (FILE* stream, int exit_code)
             "  -I  --getddsfreq                Gets FPGA DDS Frequency [in Hertz]\n"
             "  -L  --getsamples                Gets FPGA number of samples of the next acquisition\n"
             "  -C  --getchan                   Gets FPGA data channel of the next acquisition\n"
-            "  -B  --getcurve   <channel>\n    Gets FPGA curve data of channel <channel_number>\n"
-            "                                  [<channel> must be one of the following:\n"
-            "                                  0 -> ADC; 1-> TBT Amp; 2 -> TBT Pos\n"
-            "                                  3 -> FOFB Amp; 4-> FOFB Pos]\n"
+            "  -B  --getcurve   <channel>      Gets FPGA curve data of channel <channel_number>\n"
+            "                                    [<channel> must be one of the following:\n"
+            "                                     0 -> ADC; 1-> TBT Amp; 2 -> TBT Pos\n"
+            "                                     3 -> FOFB Amp; 4-> FOFB Pos]\n"
             "  -E  --getmonitamp               Gets FPGA Monitoring Ampltitude Sample\n"
-            "                                  This consists of the following:\n"
-            "                                  Monit. Amp 0, Amp 1, Amp 2, Amp 3\n"
+            "                                   [This consists of the following:\n"
+            "                                    Monit. Amp 0, Amp 1, Amp 2, Amp 3]\n"
             "  -F  --getmonitpos               Gets FPGA Monitoring Position Sample\n"
-            "                                  This consists of the following:\n"
-            "                                  Monit. X, Y, Q, Sum\n"
+            "                                   [This consists of the following:\n"
+            "                                    Monit. X, Y, Q, Sum]\n"
             );
     exit (exit_code);
 }
@@ -378,6 +382,8 @@ static struct option long_options[] =
     {"getfesw",         no_argument,         NULL, 'G'},
     {"getfeatt1",       no_argument,         NULL, 'A'},
     {"getfeatt2",       no_argument,         NULL, 'Z'},
+    {"getfetemp1",      no_argument,         NULL, 'M'},
+    {"getfetemp2",      no_argument,         NULL, 'K'},
     {"getdivclk",       no_argument,         NULL, 'D'},
     {"getphaseclk",     no_argument,         NULL, 'P'},
     {"getwdw",          no_argument,         NULL, 'U'},
@@ -600,7 +606,11 @@ static call_func_t call_curve[END_CURVE_ID] = {
 #define GETSET_FE_ATT1_NAME     "getset_fe_att1"
 #define GETSET_FE_ATT2_ID       2
 #define GETSET_FE_ATT2_NAME     "getset_fe_att2"
-#define END_FE_ID               3
+#define GET_FE_TEMP1_ID         3
+#define GET_FE_TEMP1_NAME       "get_fe_temp1"
+#define GET_FE_TEMP2_ID         4
+#define GET_FE_TEMP2_NAME       "get_fe_temp2"
+#define END_FE_ID               5
 
 static call_var_t call_fe_var[END_FE_ID] = {
     {SET_FE_SW_ON_NAME          , 0, 0, UINT8_T, {0}, {0}}, // The set "sw off" and "get sw"
@@ -609,8 +619,10 @@ static call_var_t call_fe_var[END_FE_ID] = {
     //                                             // are on the same ID in FE server
     {GETSET_FE_ATT1_NAME        , 0, 0, DOUBLE_T, {0}, {0}}, // The set "att1" and get "att1"
     // are on the same ID in FE server
-    {GETSET_FE_ATT2_NAME        , 0, 0, DOUBLE_T, {0}, {0}} // The set "att2" and get "att2"
+    {GETSET_FE_ATT2_NAME        , 0, 0, DOUBLE_T, {0}, {0}}, // The set "att2" and get "att2"
     // are on the same ID in FE server
+    {GET_FE_TEMP1_NAME          , 0, 0, DOUBLE_T, {0}, {0}},
+    {GET_FE_TEMP2_NAME          , 0, 0, DOUBLE_T, {0}, {0}}
 };
 
 // Some FE variable values
@@ -796,7 +808,7 @@ int main(int argc, char *argv[])
     program_name = argv[0];
 
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:uen:q:i:l:c:gmta:z:XYSJDPUQILCB:ENFG",
+    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:uen:q:i:l:c:gmta:z:XYSJGDPNUQILCAZMKCB:EF",
                     long_options, NULL)) != -1)
     {
         // check to see if a single character or long option came through
@@ -1025,6 +1037,18 @@ int main(int argc, char *argv[])
             case 'Z':
                 call_fe_var[GETSET_FE_ATT2_ID].call = 1;
                 call_fe_var[GETSET_FE_ATT2_ID].rw = 1; // Read value from variable
+                need_fe_hostname = 1;
+                break;
+                // Get FE Temp1
+            case 'M':
+                call_fe_var[GET_FE_TEMP1_ID].call = 1;
+                call_fe_var[GET_FE_TEMP1_ID].rw = 1; // Read value from variable
+                need_fe_hostname = 1;
+                break;
+                // Get FE Temp2
+            case 'K':
+                call_fe_var[GET_FE_TEMP2_ID].call = 1;
+                call_fe_var[GET_FE_TEMP2_ID].rw = 1; // Read value from variable
                 need_fe_hostname = 1;
                 break;
                 // Get Curve
