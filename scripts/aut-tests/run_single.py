@@ -11,7 +11,7 @@ fpga_hostname = 'localhost'
 rffe_hostname = '10.0.18.200'
 
 from bpm_experiment import BPMExperiment
-exp = BPMExperiment(fpga_hostname, rffe_hostname, True)
+exp = BPMExperiment(fpga_hostname, rffe_hostname)
 
 import os
 from os.path import basename
