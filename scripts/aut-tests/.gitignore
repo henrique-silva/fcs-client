@@ -1,1 +1,8 @@
-*pyc
+# General
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
