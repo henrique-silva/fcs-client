@@ -21,8 +21,6 @@ class BPMExperiment():
         return lines
     
     def run(self, data_filename, datapath):
-        verbose = False # FIXME: remove this line in the future
-
         if datapath == 'adc':
             data_rate_decim_factor = '1'
             acq_channel = '0'
@@ -53,12 +51,11 @@ class BPMExperiment():
         if not self.debug:
             subprocess.Popen(command_argument_list)
         else:
-            if verbose:
-                print(command_argument_list)
+            print(command_argument_list)
 
         # Run RFFE configuration commands
         command_argument_list = ['fcs_client']
-        command_argument_list.extend(['--setfesw', self.metadata['rffe_switching'].split()[0]])
+        command_argument_list.extend(['--setfesw' + self.metadata['rffe_switching'].split()[0]])
         att_items = self.metadata['rffe_attenuators'].split(',')
         i = 1
         for item in att_items:
@@ -69,8 +66,7 @@ class BPMExperiment():
         if not self.debug:
             subprocess.Popen(command_argument_list)
         else:
-            if verbose:
-                print(command_argument_list)
+            print(command_argument_list)
 
         # TODO: Check if everything was properly set
 
@@ -81,13 +77,12 @@ class BPMExperiment():
 
         # Run acquisition
         command_argument_list = ['fcs_client']
-        command_argument_list.extend(['--startacq', acq_channel])
+        command_argument_list.append('--startacq')
         command_argument_list.extend(['--setfpgahostname', self.fpga_hostname])
         if not self.debug:
             p = subprocess.Popen(command_argument_list)
         else:
-            if verbose:
-                print(command_argument_list)
+            print(command_argument_list)
 
         # The script execution is blocked here until data acquisition has completed
 
@@ -110,8 +105,7 @@ class BPMExperiment():
             p = subprocess.Popen(command_argument_list, stdout=f)
         else:
             f.writelines(['10 11 -9 80\n54 5 6 98\n']);
-            if verbose:
-                print(command_argument_list)
+            print(command_argument_list)
         f.close()
 
         # Compute data file signature
