@@ -8,7 +8,7 @@ print(input_metadata_filename)
 print(data_filename)
 
 fpga_hostname = 'localhost'
-rffe_hostname = '10.0.18.200'
+rffe_hostname = '10.0.17.200'
 
 from bpm_experiment import BPMExperiment
 exp = BPMExperiment(fpga_hostname, rffe_hostname)
