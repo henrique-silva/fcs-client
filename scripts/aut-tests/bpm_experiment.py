@@ -49,7 +49,7 @@ class BPMExperiment():
         command_argument_list.extend(['--setchan', acq_channel])
         command_argument_list.extend(['--setfpgahostname', self.fpga_hostname])
         if not self.debug:
-            subprocess.Popen(command_argument_list)
+            subprocess.call(command_argument_list)
         else:
             print(command_argument_list)
 
@@ -64,7 +64,7 @@ class BPMExperiment():
             i = i+1
         command_argument_list.extend(['--setrffehostname', self.rffe_hostname])
         if not self.debug:
-            subprocess.Popen(command_argument_list)
+            subprocess.call(command_argument_list)
         else:
             print(command_argument_list)
 
@@ -80,7 +80,7 @@ class BPMExperiment():
         command_argument_list.append('--startacq')
         command_argument_list.extend(['--setfpgahostname', self.fpga_hostname])
         if not self.debug:
-            p = subprocess.Popen(command_argument_list)
+            p = subprocess.call(command_argument_list)
         else:
             print(command_argument_list)
 
@@ -102,7 +102,7 @@ class BPMExperiment():
 
         f = open(data_filename, 'x')
         if not self.debug:
-            p = subprocess.Popen(command_argument_list, stdout=f)
+            p = subprocess.call(command_argument_list, stdout=f)
         else:
             f.writelines(['10 11 -9 80\n54 5 6 98\n']);
             print(command_argument_list)
