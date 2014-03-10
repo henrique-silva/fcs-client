@@ -16,8 +16,6 @@ class MetadataParser():
                 option, value = line.split(self.option_char, 1)
                 option = option.strip()
                 value = value.strip()
-                value = value.strip('"\'')
-                value = value.split()[0]
                 self.options[option] = value
         config_file.close()
         return self.options
