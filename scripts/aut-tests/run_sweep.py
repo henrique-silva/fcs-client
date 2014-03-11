@@ -15,7 +15,6 @@ rffe_hostname = '10.0.17.200'
 exp = BPMExperiment(fpga_hostname, rffe_hostname)
 
 rffe_switching_sweep = ['off', 'on']
-rffe_attenuators_sweep = range(31,-1,-1)
 
 datapaths = ['adc', 'tbt', 'fofb']
 
@@ -32,12 +31,14 @@ while True:
         att_items = exp.metadata['rffe_attenuators'].split(',')
         natt = len(att_items)
 
-        if 'rffe_v1_' in exp.metadata['rffe_board_version']:
-            rffe_gains = [14, 14] # FIXME: get right values with Baron
-            rffe_power_thresholds = [-15, 0] # FIXME: get right values with Baron
-        elif 'rffe_v2_' in exp.metadata['rffe_board_version']:
-            rffe_gains = [20]  # FIXME: get right values with Baron
-            rffe_power_thresholds = [0] # FIXME: get right values with Baron
+        if 'rffe_v1' in exp.metadata['rffe_board_version']:
+            rffe_gains = [13, 17]
+            rffe_power_thresholds = [0, 0]
+            rffe_attenuators_sweep = range(31,-2,-2)
+        elif 'rffe_v2' in exp.metadata['rffe_board_version']:
+            rffe_gains = [17]
+            rffe_power_thresholds = [0]
+            rffe_attenuators_sweep = range(31,-1,-2)
         else:
             print('Unknown version of RFFE. Ending experiment...\n')
             break
