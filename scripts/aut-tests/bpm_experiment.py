@@ -1,11 +1,20 @@
+import os
+from os.path import basename
+from time import time
+import hashlib
+from time import strftime, gmtime
+from math import floor
+import subprocess
+
+from metadata_parser import MetadataParser
+
 class BPMExperiment():
 
     def __init__(self, fpga_hostname = 'localhost', rffe_hostname = 'localhost', debug = False):
         self.fpga_hostname = fpga_hostname
         self.rffe_hostname = rffe_hostname
         self.debug = debug
-
-        from metadata_parser import MetadataParser
+        
         self.metadata_parser = MetadataParser()
 
     def load_from_metadata(self, input_metadata_filename):
@@ -36,7 +45,6 @@ class BPMExperiment():
 
         deswitching_phase_offset = str(int(self.metadata['dsp_deswitching_phase'].split()[0]) - int(self.metadata['rffe_switching_phase'].split()[0]))
 
-        import subprocess
         # Run FPGA configuration commands
         command_argument_list = ['fcs_client']
         command_argument_list.extend(['--setdivclk', self.metadata['rffe_switching_frequency_ratio'].split()[0]])
@@ -72,7 +80,6 @@ class BPMExperiment():
 
         # Timestamp the start of data acquisition
         # FIXME: timestamp should ideally come together with data.
-        from time import time
         t = time()
 
         # Run acquisition
@@ -92,7 +99,6 @@ class BPMExperiment():
         command_argument_list.extend(['--setfpgahostname', self.fpga_hostname])
 
         # Ensure file path exists
-        import os
         path = os.path.dirname(data_filename)
         try:
             os.makedirs(path)
@@ -113,7 +119,6 @@ class BPMExperiment():
         text = f.read()
         f.close()
 
-        import hashlib
         if self.metadata['data_signature_method'].split()[0] == 'md5':
             md = hashlib.md5()
         elif self.metadata['data_signature_method'].split()[0] == 'sha-1':
@@ -124,8 +129,6 @@ class BPMExperiment():
         filesignature = md.hexdigest()
 
         # Format date and hour as an standard UTC timestamp (ISO 8601)
-        from time import strftime, gmtime
-        from math import floor
         ns = int(floor((t * 1e9) % 1e9))
         timestamp_start = '%s.%09dZ' % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(t)), ns)
 
@@ -149,7 +152,6 @@ class BPMExperiment():
         config_fromfile_lines.extend(config_automatic_lines)
 
         # Metadata file is placed in the same path and with the same filename as the data file, but with .metadata extension
-        from os.path import basename
         output_metadata_filename = os.path.splitext(data_filename)[0] + '.metadata'
 
         f = open(output_metadata_filename, 'x')
