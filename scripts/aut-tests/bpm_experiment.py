@@ -1,10 +1,10 @@
 class BPMExperiment():
- 
+
     def __init__(self, fpga_hostname = 'localhost', rffe_hostname = 'localhost', debug = False):
         self.fpga_hostname = fpga_hostname
         self.rffe_hostname = rffe_hostname
         self.debug = debug
-        
+
         from metadata_parser import MetadataParser
         self.metadata_parser = MetadataParser()
 
@@ -19,7 +19,7 @@ class BPMExperiment():
         for key in experiment_parameters:
             lines.append(key + ' = ' + self.metadata[key] + '\n')
         return lines
-    
+
     def run(self, data_filename, datapath):
         if datapath == 'adc':
             data_rate_decim_factor = '1'
@@ -133,9 +133,9 @@ class BPMExperiment():
         data_filename_basename = os.path.basename(data_filename)
 
         # Build metadata file based on template metadata file and post-processed metadata
-        
+
         config_base_metadata_lines = self.get_metadata_lines()
-        
+
         config_automatic_lines = [];
         config_automatic_lines.append('data_original_filename = ' + data_filename_basename + '\n')
         config_automatic_lines.append('data_signature = ' + filesignature + '\n')
