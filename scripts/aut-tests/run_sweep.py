@@ -1,19 +1,20 @@
 #!/usr/bin/python3
 
 import sys
+import os
+import itertools
+from bpm_experiment import BPMExperiment
+
 input_metadata_filename = sys.argv[1]
 data_file_path = sys.argv[2]
 
 fpga_hostname = 'localhost'
 rffe_hostname = '10.0.17.200'
 
-from bpm_experiment import BPMExperiment
 exp = BPMExperiment(fpga_hostname, rffe_hostname)
 
 rffe_switching_sweep = ['off', 'on']
 rffe_attenuators_sweep = range(31,-1,-1)
-
-import os
 
 datapaths = ['adc', 'tbt', 'fofb']
 
@@ -40,7 +41,6 @@ while True:
             print('Unknown version of RFFE. Ending experiment...\n')
             break
 
-        import itertools
         att_combinations = list(itertools.product(rffe_attenuators_sweep, repeat = natt))
 
         nexp = 1
