@@ -26,7 +26,7 @@ class BPMExperiment():
             acq_channel = '0'
             acq_npts = '100000'
         elif datapath == 'tbt':
-            data_rate_decim_factor = self.metadata['adc_sampling_harmonic'].split()[0] # FIXME: data_rate_decim_factor should be ideally read from FPGA
+            data_rate_decim_factor = self.metadata['adc_clock_sampling_harmonic'].split()[0] # FIXME: data_rate_decim_factor should be ideally read from FPGA
             acq_channel = '1'
             acq_npts = '100000'
         elif datapath == 'fofb':
