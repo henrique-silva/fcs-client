@@ -1,0 +1,100 @@
+# All comments in this templante will not be present in the generated metadata file
+# The comments shall be preceded by a # character
+
+# ===============
+# BEAM PARAMETERS
+# ===============
+beam_harmonic_number = 372
+beam_bunch_length = 16.6 ps # 16.6 ps, 4 ps
+beam_current = 500 mA
+beam_orbit_correction = on
+beam_pattern = multibunch6fold # multibunch6fold, singlebunch
+beam_pattern_multibunch6fold_fill = 45 # comment this line if
+
+
+# =================
+# CABLES PARAMETERS
+# =================
+#bpm2rffe_cables_delay_a = 0 ps # antenna A as reference
+#bpm2rffe_cables_delay_b = 10 ps
+#bpm2rffe_cables_delay_c = 5 ps
+#bpm2rffe_cables_delay_d = 20 ps
+#bpm2rffe_cables_model = LMR400
+
+#rffe2adc_cables_delay_a = 0 ps # antenna A as reference
+#rffe2adc_cables_delay_b = 10 ps
+#rffe2adc_cables_delay_c = 5 ps
+#rffe2adc_cables_delay_d = 20 ps
+#rffe2bpm_cables_model = LMR400
+
+# ======
+# SIGNAL
+# ======
+signal_source = beam
+signal_carrier_frequency = 476316000 Hz
+
+# ========================
+# RF-BPM PICKUP PARAMETERS
+# ========================
+#bpm_button_diameter = 6 mm
+#bpm_button_gap = 0.3 mm
+#bpm_button_thickness = 2 mm
+#bpm_name = AMP01A
+#bpm_type = button_45deg                                                             # possible values: button_45deg, stripline_45deg, cavity
+#bpm_geometry = circular                                                             # possible values: circular, ellipsoidal, octagonal
+#bpm_Kx = 10000000 mm
+#bpm_Ky = 10000000 mm
+
+
+# ===================
+# A/D CONVERTER (ADC)
+# ===================
+adc_signal_carrier_frequency = rffe_signal_carrier_frequency                        # possible values: <value> Hz / if analog dowconversion is used, ADC signal carrier frequency should be the corresponding IF, otherwise it will equal rffe_signal_carrier_frequency
+adc_signal_source = rffe # possible values: rffe, signalgenerator
+adc_board_version = fmc130_v1_passive_clock_distribution
+#adc_board_serialnumber = xxxxxxxxx
+
+
+# =========
+# ADC CLOCK
+# =========
+adc_clock_source = signalgenerator                                                  # possible values: signalgenerator, onboard_pll
+adc_clock_source_signalgenerator_model = "Rohde&Schwarz SMB100A-B1H"
+adc_clock_frequency_offset = 0 ppm
+adc_clock_sampling_harmonic = 35                                                    # in relation to beam revolution harmonics
+adc_clock_power = 10 dBm
+#adc_clock_external_filter = "Minicircuits BPF-A122+"                               # possible values: "Minicircuits PLP-70+" / use colons if several filters are cascaded (e.g. "Minicircuits PLP-70+", "Minicircuits PLP-70+")
+
+
+# ===================
+# RF FRONT-END (RFFE)
+# ===================
+rffe_switching_phase = 0
+rffe_switching_frequency_ratio = 1112
+rffe_switching_frequency_reference = adc_clock                                      # possible values: beam_revolution_frequency, adc_clock
+rffe_attenuators = 10 dB                                                            # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
+rffe_signal_carrier_maxpower = -20 dBm                                              # maximum carrier signal power among A, B, C, D antennas
+rffe_switching = off
+#rffe_signal_external_filter = "Taisaw TA0568A"
+rffe_board_version = rffe_v2_476MHz                                                 # possible values: rffe_v1_476MHz, rffe_v2_476MHz, rffe_v1_500MHz, rffe_v2_500MHz
+#rffe_board_serialnumber = xxxxxxxxx
+
+
+# =========================
+# DIGITAL SIGNAL PROCESSING
+# =========================
+dsp_deswitching_phase = 30                                                          # possible values: 30, 210
+dsp_sausaging_window = tukey
+dsp_sausaging_window_parameters = 1
+dsp_sausaging = off
+#dsp_firmware_version = xxxxxxxxx
+
+
+# =======
+# GENERAL
+# =======
+data_general_description = "Tests at LNLS, March 2014"
+data_signature_method = md5                                                         # possible values: sha-1, sha-256, md5
+data_source = experimental                                                          # possible values: experimental, experimental_postprocessed, simulation
+location = "LNLS"                                                                   # SPEAR3, SSRL, SLAC, Menlo Park, CA, USA
+location_timezone = BRT                                                             # possible values: PST, BRT

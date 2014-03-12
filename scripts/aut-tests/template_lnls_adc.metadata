@@ -1,0 +1,51 @@
+# All comments in this templante will not be present in the generated metadata file
+# The comments shall be preceded by a # character
+
+# ======
+# SIGNAL
+# ======
+signal_source = signalgenerator # beam
+signal_source_signalgenerator_model = "R&S SMB100A-B1"
+signal_carrier_frequency = 47606600 Hz
+signal_carrier_harmonic_number = 148
+#signal_filter = "Taisaw TA0568A"
+
+
+# ==============
+# EXTERNAL CLOCK
+# ==============
+external_clock_source = signalgenerator                                             # pll_board
+external_clock_source_signalgenerator_model = "R&S SMB100A-B1H"
+external_clock_power = 10 dBm
+external_clock_sampling_harmonic = 35                                               # in relation to beam revolution harmonics
+external_clock_sampling_offset = 0 ppm                                              # also know as offset-tune or frequency detune
+external_clock_filter = "Minicircuits BPF-A122+"                                    # possible values: "Minicircuits PLP-70+" / use colons if several filters are cascaded (e.g. "Minicircuits PLP-70+", "Minicircuits PLP-70+")
+
+
+# ===================
+# A/D CONVERTER (ADC)
+# ===================
+adc_signal_source = rffe # signal                                                   # possible values: rffe, signal, 4way_rfsplitter, rffe_channelA_4way_rfsplitter
+adc_clock_source = external_clock                                                   # possible values: onboard_pll
+adc_board_version = fmc130_v1_passive_clock_distribution                            # possible values: fmc130_v1_passive_clock_distribution, fmc130_v1_active_clock_distribution_si571, fmc130_v1_active_clock_distribution_cvhd950
+#adc_board_serialnumber = xxxxxxxxx
+
+
+# =========================
+# DIGITAL SIGNAL PROCESSING
+# =========================
+dsp_deswitching_phase = 30                                                          # possible values: 30, 210
+dsp_sausaging_window = tukey
+dsp_sausaging_window_parameters = 1
+dsp_sausaging = off
+#dsp_firmware_version = xxxxxxxxx
+
+
+# =======
+# GENERAL
+# =======
+data_general_description = "Only ADC"
+data_signature_method = md5                                                         # possible values: sha-1, sha-256, md5
+data_source = experimental                                                          # possible values: experimental, experimental_postprocessed, simulation
+location = "LNLS"                                                                   # SPEAR3, SSRL, SLAC, Menlo Park, CA, USA
+location_timezone = BRT                                                             # possible values: PST, BRT
