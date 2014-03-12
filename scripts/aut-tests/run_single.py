@@ -36,9 +36,10 @@ while True:
                 break
                 
         for i in range(0,len(data_filenames)):
-            print('    Running... ' + datapath[i] + ' datapath')
+            print('    Running ' + datapaths[i] + ' datapath...', end='')
+            sys.stdout.flush()
             exp.run(data_filenames[i], datapaths[i])
-            print('    Files saved at: ' + data_filenames[i])
+            print('done. Results at: ' + data_filenames[i] + '\n')
 
         print('The experiment has run successfully!\n');
 

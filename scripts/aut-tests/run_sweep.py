@@ -34,11 +34,11 @@ while True:
         if 'rffe_v1' in exp.metadata['rffe_board_version']:
             rffe_gains = [13, 17]
             rffe_power_thresholds = [0, 0]
-            rffe_attenuators_sweep = range(31,-1,-5)
+            rffe_attenuators_sweep = range(0,31,5)
         elif 'rffe_v2' in exp.metadata['rffe_board_version']:
             rffe_gains = [17]
             rffe_power_thresholds = [0]
-            rffe_attenuators_sweep = range(31,-1,-5)
+            rffe_attenuators_sweep = range(0,31,5)
         else:
             print('Unknown version of RFFE. Ending experiment...\n')
             break
@@ -90,10 +90,12 @@ while True:
                 nexp = nexp+1
 
                 for i in range(0,len(data_filenames)):
-                    print('Running... ' + datapath[i] + ' datapath')
+                    print('    Running ' + datapaths[i] + ' datapath...', end='')
+                    sys.stdout.flush()
                     exp.run(data_filenames[i], datapaths[i])
-                print('Files saved at: ' + data_filenames[i])
+                    print('done. Results at: ' + data_filenames[i])
 
+                print('')
 
         print('The experiment has run successfully!\n');
         input_text = input('Press ENTER to load a new experiment setting from \'' + os.path.abspath(input_metadata_filename) + '\'.\nType \'q\' and press ENTER to quit.\n')

@@ -15,7 +15,7 @@ class BPMExperiment():
         self.fpga_hostname = fpga_hostname
         self.rffe_hostname = rffe_hostname
         self.debug = debug
-        
+
         self.metadata_parser = MetadataParser()
 
     def load_from_metadata(self, input_metadata_filename):
