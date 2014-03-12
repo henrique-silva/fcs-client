@@ -34,11 +34,11 @@ while True:
         if 'rffe_v1' in exp.metadata['rffe_board_version']:
             rffe_gains = [13, 17]
             rffe_power_thresholds = [0, 0]
-            rffe_attenuators_sweep = range(31,-2,-2)
+            rffe_attenuators_sweep = range(31,-1,-5)
         elif 'rffe_v2' in exp.metadata['rffe_board_version']:
             rffe_gains = [17]
             rffe_power_thresholds = [0]
-            rffe_attenuators_sweep = range(31,-1,-2)
+            rffe_attenuators_sweep = range(31,-1,-5)
         else:
             print('Unknown version of RFFE. Ending experiment...\n')
             break
@@ -80,20 +80,20 @@ while True:
                 while True:
                     data_filenames = []
                     for datapath in datapaths:
-                        data_filenames.append(os.path.join(os.path.normpath(data_file_path), 'data_' + str(ntries) + '_' + datapath + '.txt'))
+                        data_filenames.append(os.path.join(os.path.normpath(data_file_path), 'switching_' + exp.metadata['rffe_switching'], datapath, 'data_' + str(ntries) + '_' + datapath + '.txt'))
 
                     ntries = ntries+1
                     if all(not os.path.exists(data_filename) for data_filename in data_filenames):
                         break
 
-                print(str.rjust('Run #' + str(nexp), 12) + ': RFFE switching ' + exp.metadata['rffe_switching'] + '; RFFE attenuators: ' + exp.metadata['rffe_attenuators'] + ' ', end='')
+                print(str.rjust('Run #' + str(nexp), 12) + ': RFFE switching ' + exp.metadata['rffe_switching'] + '; RFFE attenuators: ' + exp.metadata['rffe_attenuators'] + ' ')
                 nexp = nexp+1
 
                 for i in range(0,len(data_filenames)):
+                    print('Running... ' + datapath[i] + ' datapath')
                     exp.run(data_filenames[i], datapaths[i])
-                    print('.', end='')
+                print('Files saved at: ' + data_filenames[i])
 
-                print(' / Files saved at: ' + os.path.join(os.path.normpath(data_file_path), 'data_' + str(ntries) + '_(datapath).txt') )
 
         print('The experiment has run successfully!\n');
         input_text = input('Press ENTER to load a new experiment setting from \'' + os.path.abspath(input_metadata_filename) + '\'.\nType \'q\' and press ENTER to quit.\n')
