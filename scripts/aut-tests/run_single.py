@@ -29,19 +29,16 @@ while True:
         while True:
             data_filenames = []
             for datapath in datapaths:
-                data_filenames.append(os.path.join(os.path.normpath(data_file_path), 'data_' + str(ntries) + '_' + datapath + '.txt'))
+                data_filenames.append(os.path.join(os.path.normpath(data_file_path), datapath, 'data_' + str(ntries) + '_' + datapath + '.txt'))
 
             ntries = ntries+1
             if all(not os.path.exists(data_filename) for data_filename in data_filenames):
                 break
                 
-        print('Running...', end='')
-
         for i in range(0,len(data_filenames)):
+            print('    Running... ' + datapath[i] + ' datapath')
             exp.run(data_filenames[i], datapaths[i])
-            print('.', end='')
-
-        print(' / Files saved at: ' + os.path.join(os.path.normpath(data_file_path), 'data_' + str(ntries) + '_(datapath).txt') )
+            print('    Files saved at: ' + data_filenames[i])
 
         print('The experiment has run successfully!\n');
 
