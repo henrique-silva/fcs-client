@@ -34,7 +34,7 @@ while True:
         if 'rffe_v1' in exp.metadata['rffe_board_version']:
             rffe_gains = [13, 17]
             rffe_power_thresholds = [0, 0]
-            rffe_attenuators_sweep = range(0,31,5)
+            rffe_attenuators_sweep = range(0,31,7)
         elif 'rffe_v2' in exp.metadata['rffe_board_version']:
             rffe_gains = [17]
             rffe_power_thresholds = [0]
@@ -90,10 +90,10 @@ while True:
                 nexp = nexp+1
 
                 for i in range(0,len(data_filenames)):
-                    print('    Running ' + datapaths[i] + ' datapath...', end='')
+                    print('        Running ' + datapaths[i] + ' datapath...', end='')
                     sys.stdout.flush()
                     exp.run(data_filenames[i], datapaths[i])
-                    print('done. Results at: ' + data_filenames[i])
+                    print(' done. Results in: ' + data_filenames[i])
 
                 print('')
 

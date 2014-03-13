@@ -4,7 +4,7 @@ import sys
 import os
 
 from bpm_experiment import BPMExperiment
- 
+
 input_metadata_file_path = sys.argv[1]
 data_file_path = sys.argv[2]
 
@@ -34,12 +34,12 @@ while True:
             ntries = ntries+1
             if all(not os.path.exists(data_filename) for data_filename in data_filenames):
                 break
-                
+
         for i in range(0,len(data_filenames)):
-            print('    Running ' + datapaths[i] + ' datapath...', end='')
+            print('        Running ' + datapaths[i] + ' datapath...', end='')
             sys.stdout.flush()
             exp.run(data_filenames[i], datapaths[i])
-            print('done. Results at: ' + data_filenames[i] + '\n')
+            print(' done. Results in: ' + data_filenames[i])
 
         print('The experiment has run successfully!\n');
 
