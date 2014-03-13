@@ -3,7 +3,6 @@
 import sys
 import os
 import itertools
-
 from bpm_experiment import BPMExperiment
 
 input_metadata_filename = sys.argv[1]
@@ -40,7 +39,7 @@ while True:
             exp.metadata['dsp_sausaging'] = dsp_sausaging
 
             # Sweep deswitching phase
-            for deswitching_value_set in dps_deswitching_phase_sweep:
+            for deswitching_value_set in dsp_deswitching_phase_sweep:
                 # Write deswitching values to metadata
                 exp.metadata['dsp_deswitching_phase'] = str(deswitching_value_set);
 
@@ -57,7 +56,6 @@ while True:
 
                 print(str.rjust('Run #' + str(nexp), 12) + ': Sausaging ' + exp.metadata['dsp_sausaging'] + '; Deswitching phase: ' + exp.metadata['dsp_deswitching_phase'] + ' ')
                 nexp = nexp+1
-
                 for i in range(0,len(data_filenames)):
                     print('        Running ' + datapaths[i] + ' datapath...', end='')
                     sys.stdout.flush()
