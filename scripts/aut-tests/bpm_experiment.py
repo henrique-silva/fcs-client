@@ -44,14 +44,18 @@ class BPMExperiment():
         elif datapath == 'fofb':
             data_rate_decimation_ratio = '1112' # FIXME: data_rate_decim_factor should be ideally read from FPGA
             acq_channel = '3'
-            acq_npts = '1000000'
+            acq_npts = '500000'
             data_file_structure = 'bpm_amplitudes_baseband'
 
         deswitching_phase_offset = str(int(self.metadata['dsp_deswitching_phase'].split()[0]) - int(self.metadata['rffe_switching_phase'].split()[0]))
 
+        # FIXME: should not divide by 2 and subtract 4 to make FPGA counter count right. FPGA must be corrected
+        rffe_switching_frequency_ratio = str(int(self.metadata['rffe_switching_frequency_ratio'].split()[0])/2 - 4)
+
         # Run FPGA configuration commands
         command_argument_list = ['fcs_client']
-        command_argument_list.extend(['--setdivclk', self.metadata['rffe_switching_frequency_ratio'].split()[0]])
+        #command_argument_list.extend(['--setdivclk', self.metadata['rffe_switching_frequency_ratio'].split()[0]])
+        command_argument_list.extend(['--setdivclk', rffe_switching_frequency_ratio])
         #command_argument_list.extend(['--setkx', self.metadata['bpm_Kx'].split()[0]])
         #command_argument_list.extend(['--setky', self.metadata['bpm_Ky'].split()[0]])
         command_argument_list.extend(['--setphaseclk', deswitching_phase_offset])
