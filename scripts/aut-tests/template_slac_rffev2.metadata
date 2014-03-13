@@ -74,8 +74,8 @@ adc_board_version = fmc130_v1_passive_clock_distribution                        
 # RF FRONT-END (RFFE)
 # ===================
 rffe_signal_source = signal
-rffe_signal_carrier_maxpower = -10 dBm                                              # maximum carrier signal power among A, B, C, D antennas
-rffe_attenuators = 0 dB                                                     # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
+rffe_signal_carrier_maxpower = 0 dBm                                              # maximum carrier signal power among A, B, C, D antennas
+rffe_attenuators = 15 dB                                                     # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
 rffe_switching = off
 rffe_switching_phase = 0
 rffe_switching_frequency_ratio = 1112
@@ -87,7 +87,7 @@ rffe_board_version = rffe_v2_476MHz                                             
 # =========================
 # DIGITAL SIGNAL PROCESSING
 # =========================
-dsp_deswitching_phase = 40                                                         # possible values: 30, 210
+dsp_deswitching_phase = 80                                                         # possible values: 30, 210
 dsp_sausaging_window = tukey
 dsp_sausaging_window_parameters = 1
 dsp_sausaging = off
