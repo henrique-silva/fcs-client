@@ -5,7 +5,7 @@
 # SIGNAL
 # ======
 signal_source = signalgenerator                                 # beam
-signal_source_signalgenerator_model = "R&S SMB100A-B1"          # comment this line if signal source is the beam      
+signal_source_signalgenerator_model = "R&S SMB100A-B1"          # comment this line if signal source is the beam
 signal_carrier_frequency = 477997680 Hz
 signal_carrier_harmonic_number = 372
 #signal_filter = "Taisaw TA0568A"
@@ -43,8 +43,12 @@ external_clock_power = 13 dBm
 #rffe2adc_cables_delay_b = 10 ps
 #rffe2adc_cables_delay_c = 5 ps
 #rffe2adc_cables_delay_d = 20 ps
-#rffe2bpm_cables_model = LMR400                                                           # possible values: LMR195, LMR400
-
+rffe2bpm_cables_model = LMR195                                                           # possible values: LMR195, LMR400
+rffe2bpm_cables_A_serialnumber = "125173-0018"
+rffe2bpm_cables_B_serialnumber = "125173-0028"
+rffe2bpm_cables_C_serialnumber = "125173-0027"
+rffe2bpm_cables_D_serialnumber = "125173-0007"
+rffe_switching_cable_serialnumber = "125173-0030"
 
 # ========================
 # RF-BPM PICKUP PARAMETERS
@@ -74,7 +78,7 @@ adc_board_version = fmc130_v1_passive_clock_distribution                        
 # RF FRONT-END (RFFE)
 # ===================
 rffe_signal_source = signal
-rffe_signal_carrier_maxpower = 0 dBm                                              # maximum carrier signal power among A, B, C, D antennas
+rffe_signal_carrier_maxpower = -60 dBm                                              # maximum carrier signal power among A, B, C, D antennas
 rffe_attenuators = 15 dB                                                     # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
 rffe_switching = off
 rffe_switching_phase = 0
