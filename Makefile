@@ -37,6 +37,14 @@ install:
 	mkdir -p $(INSTALL_DIR)
 	cp fcs_client $(INSTALL_DIR)
 	ln -sf $(INSTALL_DIR)/fcs_client /usr/local/bin/
+	cp scripts/aut-tests/*.py $(INSTALL_DIR)
+	ln -sf $(INSTALL_DIR)/run_single.py /usr/local/bin/run_single
+	ln -sf $(INSTALL_DIR)/run_sweep.py /usr/local/bin/run_sweep
+	ln -sf $(INSTALL_DIR)/run_sweep_sausaging.py /usr/local/bin/run_sweep_sausaging
+	mkdir -p ~/Desktop/metadata
+	cp -r scripts/aut-tests/*.metadata ~/Desktop/metadata/
+	chown -R lnls-bpm:lnls-bpm ~/Desktop/metadata
+	chmod -R 444 ~/Desktop/metadata
 
 uninstall:
 	rm -f $(INSTALL_DIR)/fcs-client
