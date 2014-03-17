@@ -8,10 +8,8 @@ from bpm_experiment import BPMExperiment
 input_metadata_file_path = sys.argv[1]
 data_file_path = sys.argv[2]
 
-fpga_hostname = 'localhost'
-rffe_hostname = '10.0.17.200'
-
-exp = BPMExperiment(fpga_hostname, rffe_hostname)
+# FIXME: FPGA and RFFE IPs should ideally come from function input arguments
+exp = BPMExperiment('localhost', '')
 
 datapaths = ['adc', 'tbt', 'fofb']
 
@@ -24,6 +22,14 @@ while True:
     input_text = input('Press ENTER to run the experiment. \nType \'l\' and press ENTER to load new experiment settings from \'' + os.path.abspath(input_metadata_file_path) + '\'.\nType \'q\' and press ENTER to quit.\n')
 
     if not input_text:
+        if 'rffe_v1' in exp.metadata['rffe_board_version']:
+            exp.rffe_hostname = '10.0.17.200'
+        elif 'rffe_v2' in exp.metadata['rffe_board_version']:
+            exp.rffe_hostname = '10.0.17.201'
+        else:
+            print('Unknown version of RFFE. Ending experiment...\n')
+            break
+
         # Assure that no file or folder will be overwritten
         ntries = 1;
         while True:

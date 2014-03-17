@@ -9,10 +9,8 @@ from bpm_experiment import BPMExperiment
 input_metadata_filename = sys.argv[1]
 data_file_path = sys.argv[2]
 
-fpga_hostname = 'localhost'
-rffe_hostname = '10.0.17.200'
-
-exp = BPMExperiment(fpga_hostname, rffe_hostname)
+# FIXME: FPGA and RFFE IPs should ideally come from function input arguments
+exp = BPMExperiment('localhost', '')
 
 rffe_switching_sweep = ['off', 'on']
 
@@ -35,10 +33,12 @@ while True:
             rffe_gains = [13, 17]
             rffe_power_thresholds = [0, 0]
             rffe_attenuators_sweep = range(0,31,7)
+            exp.rffe_hostname = '10.0.17.200'
         elif 'rffe_v2' in exp.metadata['rffe_board_version']:
             rffe_gains = [17]
             rffe_power_thresholds = [0]
             rffe_attenuators_sweep = range(0,31,5)
+            exp.rffe_hostname = '10.0.17.201'
         else:
             print('Unknown version of RFFE. Ending experiment...\n')
             break
