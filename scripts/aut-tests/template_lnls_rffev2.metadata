@@ -6,15 +6,9 @@
 # ======
 signal_source = signalgenerator # beam
 signal_source_signalgenerator_model = "R&S SMB100A-B1"
-signal_carrier_frequency = 47606600 Hz
+signal_carrier_frequency = 476066000 Hz
 signal_carrier_harmonic_number = 148
 #signal_filter = "Taisaw TA0568A"
-
-# ======
-# SIGNAL
-# ======
-splitter_4way_signal_source = rffe_chA                                              # rffe_chA, rffe_chB, rffe_chC, rffe_chD, signal
-splitter_4way_model = "ZFSC-4-1-S+"
 
 
 # ==============
@@ -22,13 +16,29 @@ splitter_4way_model = "ZFSC-4-1-S+"
 # ==============
 external_clock_source = signalgenerator                                             # pll_board
 external_clock_source_signalgenerator_model = "R&S SMB100A-B1H"
-external_clock_power = 5 dBm
+external_clock_power = 13 dBm
 #external_clock_filter = "Minicircuits BPF-A122+"                                    # possible values: "Minicircuits PLP-70+" / use colons if several filters are cascaded (e.g. "Minicircuits PLP-70+", "Minicircuits PLP-70+")
+
+
+# ===============
+# BEAM PARAMETERS
+# ===============
+#beam_bunch_length = 11 ps
+#beam_current = 250 mA
+#beam_orbit_correction = off
+#beam_pattern = multibunch                                                           # possible values: multibunch, multibunch6fold, singlebunch, twobunch, camshaft
+#beam_pattern_mutibunch_fill = 148                                                   # expressed in term of filled buckets
 
 
 # =================
 # CABLES PARAMETERS
 # =================
+#bpm2rffe_cables_delay_a = 0 ps                                                      # antenna A has been taken as reference, thus it has value 0
+#bpm2rffe_cables_delay_b = 10 ps
+#bpm2rffe_cables_delay_c = 5 ps
+#bpm2rffe_cables_delay_d = 20 ps
+#bpm2rffe_cables_model = LMR195                                                           # possible values: LMR195, LMR400
+
 #rffe2adc_cables_delay_a = 0 ps                                                      # antenna A has been taken as reference, thus it has value 0
 #rffe2adc_cables_delay_b = 10 ps
 #rffe2adc_cables_delay_c = 5 ps
@@ -36,10 +46,23 @@ external_clock_power = 5 dBm
 #rffe2bpm_cables_model = LMR195                                                           # possible values: LMR195, LMR400
 
 
+# ========================
+# RF-BPM PICKUP PARAMETERS
+# ========================
+#bpm_name = AMP01A
+#bpm_geometry = circular                                                             # possible values: circular, ellipsoidal, octagonal
+#bpm_type = button_45deg                                                             # possible values: button_45deg, stripline_45deg, cavity
+#bpm_button_diameter = 6 mm
+#bpm_button_gap = 0.3 mm
+#bpm_button_thickness = 2 mm
+#bpm_Kx = 10000000 mm
+#bpm_Ky = 10000000 mm
+
+
 # ===================
 # A/D CONVERTER (ADC)
 # ===================
-adc_signal_source = splitter_4way                                                   # possible values: rffe, signal, splitter_4way
+adc_signal_source = rffe # signal                                                   # possible values: rffe, signal, 4way_rfsplitter, rffe_channelA_4way_rfsplitter
 adc_clock_source = external_clock                                                   # possible values: onboard_pll
 adc_clock_sampling_harmonic = 35                                               # in relation to beam revolution harmonics
 adc_clock_sampling_offset = 0 ppm                                              # also know as offset-tune or frequency detune
@@ -51,8 +74,8 @@ adc_board_version = fmc130_v1_passive_clock_distribution                        
 # RF FRONT-END (RFFE)
 # ===================
 rffe_signal_source = signal
-rffe_signal_carrier_maxpower = -20 dBm                                              # maximum carrier signal power among A, B, C, D antennas
-rffe_attenuators = 10 dB                                                            # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
+rffe_signal_carrier_maxpower = -10 dBm                                              # maximum carrier signal power among A, B, C, D antennas
+rffe_attenuators = 15 dB                                                            # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
 rffe_switching = off
 rffe_switching_phase = 0
 rffe_switching_frequency_ratio = 1112
@@ -74,7 +97,7 @@ dsp_sausaging = off
 # =======
 # GENERAL
 # =======
-data_general_description = "Splitted signal from one channel of RFFE"
+data_general_description = "Tests at LNLS, March 2014"
 data_signature_method = md5                                                         # possible values: sha-1, sha-256, md5
 data_source = experimental                                                          # possible values: experimental, experimental_postprocessed, simulation
 location = "LNLS"                                                                   # SPEAR3, SSRL, SLAC, Menlo Park, CA, USA
