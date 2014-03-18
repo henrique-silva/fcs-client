@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <getopt.h>
 #include <signal.h>
+#include <time.h>
 
 #include "fcs_client.h"
 #include "revision.h"
@@ -41,13 +42,31 @@
 #define PORT "8080" // the FPGA port client will be connecting to
 #define FE_PORT "6791" // the RFFE port client will be connecting to
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define MONIT_POLL_RATE 10000 //usec
+#define MONIT_POLL_RATE 100000 //usec
+
+#define TIMESTAMP_BUF_LEN 80
+
+static char buffer[TIMESTAMP_BUF_LEN];
+static char * timestamp_str()
+{
+    struct timespec tsp;
+    int ret;
+    int len = TIMESTAMP_BUF_LEN;
+
+    clock_gettime(CLOCK_REALTIME, &tsp);   //Call clock_gettime to fill tsp
+    ret = strftime (buffer, 80, "%Y-%m-%dT%H:%M:%S", localtime(&tsp.tv_sec));
+    len -= ret-1;
+    snprintf(&buffer[strlen(buffer)], len, ".%09ldZ", tsp.tv_nsec);
+
+    return buffer;
+}
 
 const char* program_name;
 char *hostname = NULL;
 int need_hostname = 0;
 char *fe_hostname = NULL;
 int need_fe_hostname = 0;
+int monit_timestamp = 0;
 
 sig_atomic_t _interrupted = 0;
 
@@ -348,6 +367,8 @@ void print_usage (FILE* stream, int exit_code)
             "  -F  --getmonitpos               Gets FPGA Monitoring Position Sample\n"
             "                                   [This consists of the following:\n"
             "                                    Monit. X, Y, Q, Sum]\n"
+            "  -O  --monittimestamp            Outputs timestamp to be alongside\n"
+            "                                   the actual Monitoring data (Amp. or Pos.)\n"
             );
     exit (exit_code);
 }
@@ -401,6 +422,7 @@ static struct option long_options[] =
     {"getcurve",        required_argument,   NULL, 'B'},
     {"getmonitamp",     no_argument,         NULL, 'E'},
     {"getmonitpos",     no_argument,         NULL, 'F'},
+    {"monittimestamp",  no_argument,         NULL, 'O'},
     {NULL, 0, NULL, 0}
 };
 
@@ -684,6 +706,23 @@ int print_curve_32 (uint8_t *curve_data, uint32_t len)
     return 0;
 }
 
+int print_stream_curve (int monit_timestamp,
+        plot_values_monit_uint32_t *pval_monit_uint32)
+{
+    if (monit_timestamp) {
+        printf ("%s ", timestamp_str ());
+    }
+
+    printf ("%d %d %d %d\n",
+            pval_monit_uint32->ch0,
+            pval_monit_uint32->ch1,
+            pval_monit_uint32->ch2,
+            pval_monit_uint32->ch3);
+    fflush(stdout);
+
+    return 0;
+}
+
 int read_bsmp_val(call_var_t *fe_var)
 {
     // Find out with type of varible this is and printf
@@ -820,7 +859,7 @@ int main(int argc, char *argv[])
     program_name = argv[0];
 
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:uen:q:i:l:c:gmta:z:RTXYSJGDPNUQILCAZMKCB:EF",
+    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:uen:q:i:l:c:gmta:z:RTXYSJGDPNUQILCAZMKCB:EFO",
                     long_options, NULL)) != -1)
     {
         // check to see if a single character or long option came through
@@ -1088,6 +1127,10 @@ int main(int argc, char *argv[])
             case 'F':
                 call_curve_monit[CURVE_MONIT_POS_ID].call = 1;
                 need_hostname = 1;
+                break;
+                // Output timestamp with Monitoring data
+            case 'O':
+                monit_timestamp = 1;
                 break;
             case ':':
             case '?':   /* The user specified an invalid option.  */
@@ -1376,12 +1419,16 @@ int main(int argc, char *argv[])
                                     (uint8_t *)(pval_monit_uint32 + j), &curve_data_len));
 
                         // Output Curve to stdout
-                        printf ("%d %d %d %d\n", pval_monit_uint32[j].ch0,
-                                pval_monit_uint32[j].ch1,
-                                pval_monit_uint32[j].ch2,
-                                pval_monit_uint32[j].ch3);
-                        //printf ("%d\n\r", pval_monit_uint32[j].ch0);
-                        fflush(stdout);
+                        print_stream_curve (monit_timestamp,
+                                &pval_monit_uint32[j]);
+                        //printf ("%s %d %d %d %d\n",
+                        //        pval_monit_uint32[j].ch0,
+                        //        pval_monit_uint32[j].ch1,
+                        //        pval_monit_uint32[j].ch2,
+                        //        pval_monit_uint32[j].ch3,
+                        //        timestamp_str());
+                        ////printf ("%d\n\r", pval_monit_uint32[j].ch0);
+                        //fflush(stdout);
 
                         // Can this update rate cause problems for gnuplot?
                         usleep (MONIT_POLL_RATE); /* 10 Hz update */
