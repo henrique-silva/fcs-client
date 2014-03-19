@@ -8,13 +8,29 @@ def run_single(argv):
     input_metadata_file_path = argv[0]
     data_file_path = argv[1]
 
+    if len(argv) > 2:
+        if argv[2] != '0':
+            fpga_hostname = argv[2]
+        else:
+            fpga_hostname = 'localhost'
+    else:
+        fpga_hostname = 'localhost'
+
+    if len(argv) > 3:
+        if argv[3] != '0':
+            rffe_hostname = argv[3]
+        else:
+            rffe_hostname = 'localhost'
+    else:
+        rffe_hostname = 'localhost'
+
     if len(argv) > 4:
         askconfirmation = argv[4]
     else:
         askconfirmation = True
 
     # FIXME: FPGA and RFFE IPs should ideally come from function input arguments
-    exp = BPMExperiment('localhost', '')
+    exp = BPMExperiment(fpga_hostname, rffe_hostname)
 
     datapaths = ['adc', 'tbt', 'fofb']
 
