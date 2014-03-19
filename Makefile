@@ -8,7 +8,9 @@ INCLUDE_DIRS = -I.
 LFLAGS = -L.
 LDFLAGS = -lbsmp
 
+USER=$(shell whoami)
 INSTALL_DIR = /opt/fcs-client
+METADATA_DIR=~/Desktop/metadata
 
 ifeq ($(DEBUG),y)
 	CFLAGS += -DDEBUG=1
@@ -41,10 +43,10 @@ install:
 	ln -sf $(INSTALL_DIR)/run_single.py /usr/local/bin/run_single
 	ln -sf $(INSTALL_DIR)/run_sweep.py /usr/local/bin/run_sweep
 	ln -sf $(INSTALL_DIR)/run_sweep_sausaging.py /usr/local/bin/run_sweep_sausaging
-	mkdir -p ~/Desktop/metadata
-	cp -r scripts/aut-tests/*.metadata ~/Desktop/metadata/
-	chown -R lnls-bpm:lnls-bpm ~/Desktop/metadata
-	chmod -R 444 ~/Desktop/metadata
+	mkdir -p $(METADATA_DIR)
+	cp -r scripts/aut-tests/*.metadata $(METADATA_DIR)
+	chown -R $(USER):$(USER) $(METADATA_DIR)
+	chmod -R 444 $(METADATA_DIR)/*
 
 uninstall:
 	rm -f $(INSTALL_DIR)/fcs-client

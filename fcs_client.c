@@ -42,7 +42,7 @@
 #define PORT "8080" // the FPGA port client will be connecting to
 #define FE_PORT "6791" // the RFFE port client will be connecting to
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define MONIT_POLL_RATE 100000 //usec
+#define MONIT_POLL_RATE 200000 //usec
 
 #define TIMESTAMP_BUF_LEN 80
 
