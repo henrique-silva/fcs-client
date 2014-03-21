@@ -11,6 +11,7 @@ LDFLAGS = -lbsmp
 USER=$(shell whoami)
 INSTALL_DIR = /opt/fcs-client
 METADATA_DIR=~/Desktop/metadata
+EXEC_PATH=/usr/local/bin
 
 ifeq ($(DEBUG),y)
 	CFLAGS += -DDEBUG=1
@@ -21,6 +22,9 @@ REVISION=$(shell git describe --dirty --always)
 
 .SECONDEXPANSION:
 fcs_client_OBJS = fcs_client.o debug.o revision.o
+aut_test_SCRIPTS = bpm_experiment metadata_parser
+aut_test_USR_SCRIPTS = run_sweep run_single run_sweep_sausaging \
+		   run_bursts
 
 .PHONY: all clean
 
@@ -38,20 +42,29 @@ revision.o: revision.c revision.h
 install:
 	mkdir -p $(INSTALL_DIR)
 	cp fcs_client $(INSTALL_DIR)
-	ln -sf $(INSTALL_DIR)/fcs_client /usr/local/bin/
-	cp scripts/aut-tests/*.py $(INSTALL_DIR)
-	ln -sf $(INSTALL_DIR)/run_single.py /usr/local/bin/run_single
-	ln -sf $(INSTALL_DIR)/run_sweep.py /usr/local/bin/run_sweep
-	ln -sf $(INSTALL_DIR)/run_sweep_sausaging.py /usr/local/bin/run_sweep_sausaging
+	ln -sf $(INSTALL_DIR)/fcs_client $(EXEC_PATH)
+	$(foreach pyc, $(aut_test_SCRIPTS), \
+		cp scripts/aut-tests/$(pyc).py $(INSTALL_DIR) $(CMDSEP))
+	$(foreach pyc, $(aut_test_USR_SCRIPTS), \
+		cp scripts/aut-tests/$(pyc).py $(INSTALL_DIR) $(CMDSEP))
+	$(foreach pyc, $(aut_test_USR_SCRIPTS), \
+		ln -sf $(INSTALL_DIR)/$(pyc).py \
+		$(EXEC_PATH)/$(pyc) $(CMDSEP))
 	mkdir -p $(METADATA_DIR)
 	cp -r scripts/aut-tests/*.metadata $(METADATA_DIR)
 	chown -R $(USER):$(USER) $(METADATA_DIR)
 	chmod -R 444 $(METADATA_DIR)/*
 
 uninstall:
-	rm -f $(INSTALL_DIR)/fcs-client
+	$(foreach pyc, $(aut_test_USR_SCRIPTS), \
+		rm -f $(EXEC_PATH)/$(pyc) $(CMDSEP))
+	$(foreach pyc, $(aut_test_USR_SCRIPTS), \
+		rm -f $(INSTALL_DIR)/$(pyc).py $(CMDSEP))
+	$(foreach pyc, $(aut_test_SCRIPTS), \
+		rm -f $(INSTALL_DIR)/$(pyc).py $(CMDSEP))
+	rm -f $(EXEC_PATH)/fcs_client
+	rm -f $(INSTALL_DIR)/fcs_client
 	rmdir $(INSTALL_DIR)
-	rm /usr/local/bin/fcs-client
 
 clean:
 	$(foreach obj, $($(OUT)_OBJS),rm -f $(obj) $(CMDSEP))
