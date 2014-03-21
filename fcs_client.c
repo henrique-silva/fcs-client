@@ -295,6 +295,8 @@ void print_usage (FILE* stream, int exit_code)
             "                                   [in FIX25_24 format]\n"
             "  -j  --setswon                   Sets FPGA deswitching on\n"
             "  -k  --setswoff                  Sets FPGA deswitching off\n"
+            "  -1  --setswclkenon              Sets FPGA switching clock enable on\n"
+            "  -2  --setswclkenoff             Sets FPGA switching clock enable off\n"
             "  -g  --setfeswon                 Sets RFFE switching on\n"
             "  -m  --setfeswoff                Sets RFFE switching off\n"
             "  -d  --setdivclk    <value>      Sets FPGA switching divider clock to <value>\n"
@@ -338,6 +340,8 @@ void print_usage (FILE* stream, int exit_code)
             "                                    [0x1 is no switching and 0x3 is switching]\n"
             "  -G  --getfesw                   Gets RFFE switching state \n"
             "                                    [0x1 is no switching and 0x3 is switching]\n"
+            "  -3  --getswclken                Gets FPGA switching clock enable state \n"
+            "                                    [1 is enabled and 0 is disabled]\n"
             "  -A  --getfeatt1                 Gets RFFE Atenuattor 1 value\n"
             "                                    [<value> is between 0 and 31.5 [dB]\n"
             "  -Z  --getfeatt2                 Gets RFFE Attenuator 2 value\n"
@@ -386,6 +390,8 @@ static struct option long_options[] =
     {"setksum",         required_argument,   NULL, 's'},
     {"setswon",         no_argument,         NULL, 'j'},
     {"setswoff",        no_argument,         NULL, 'k'},
+    {"setswclkenon",    no_argument,         NULL, '1'},
+    {"setswclkenoff",   no_argument,         NULL, '2'},
     {"setfeswon",       no_argument,         NULL, 'g'},
     {"setfeswoff",      no_argument,         NULL, 'm'},
     {"setdivclk",       required_argument,   NULL, 'd'},
@@ -406,6 +412,7 @@ static struct option long_options[] =
     {"getky",           no_argument,         NULL, 'Y'},
     {"getksum",         no_argument,         NULL, 'S'},
     {"getsw",           no_argument,         NULL, 'J'},
+    {"getswclken",      no_argument,         NULL, '3'},
     {"getfesw",         no_argument,         NULL, 'G'},
     {"getfeatt1",       no_argument,         NULL, 'A'},
     {"getfeatt2",       no_argument,         NULL, 'Z'},
@@ -478,41 +485,47 @@ typedef call_var_t call_func_t;
 #define SET_SW_OFF_NAME         "set_sw_off"
 #define GET_SW_ID               12
 #define GET_SW_NAME             "get_sw"
-#define SET_SW_DIVCLK_ID        13
+#define SET_SW_CLK_EN_ON_ID     13
+#define SET_SW_CLK_EN_ON_NAME   "set_sw_clk_en_on"
+#define SET_SW_CLK_EN_OFF_ID    14
+#define SET_SW_CLK_EN_OFF_NAME  "set_sw_clk_en_off"
+#define GET_SW_CLK_EN_ID        15
+#define GET_SW_CLK_EN_NAME      "get_sw_clk_en"
+#define SET_SW_DIVCLK_ID        16
 #define SET_SW_DIVCLK_NAME      "set_sw_divclk"
-#define GET_SW_DIVCLK_ID        14
+#define GET_SW_DIVCLK_ID        17
 #define GET_SW_DIVCLK_NAME      "get_sw_divclk"
-#define SET_SW_PHASECLK_ID      15
+#define SET_SW_PHASECLK_ID      18
 #define SET_SW_PHASECLK_NAME    "set_sw_phaseclk"
-#define GET_SW_PHASECLK_ID      16
+#define GET_SW_PHASECLK_ID      19
 #define GET_SW_PHASECLK_NAME    "get_sw_phaseclk"
-#define SET_WDW_ON_ID           17
+#define SET_WDW_ON_ID           20
 #define SET_WDW_ON_NAME         "set_wdw_on"
-#define SET_WDW_OFF_ID          18
+#define SET_WDW_OFF_ID          21
 #define SET_WDW_OFF_NAME        "set_wdw_off"
-#define GET_WDW_ID              19
+#define GET_WDW_ID              22
 #define GET_WDW_NAME            "get_wdw"
-#define SET_WDW_DLY_ID          20
+#define SET_WDW_DLY_ID          23
 #define SET_WDW_DLY_NAME        "set_wdw_dly"
-#define GET_WDW_DLY_ID          21
+#define GET_WDW_DLY_ID          24
 #define GET_WDW_DLY_NAME        "get_wdw_dly"
-#define SET_ADCCLK_ID           22
+#define SET_ADCCLK_ID           25
 #define SET_ADCCLK_NAME         "set_adc_clk"
-#define GET_ADCCLK_ID           23
+#define GET_ADCCLK_ID           26
 #define GET_ADCCLK_NAME         "get_adc_clk"
-#define SET_DDSFREQ_ID          24
+#define SET_DDSFREQ_ID          27
 #define SET_DDSFREQ_NAME        "set_dds_freq"
-#define GET_DDSFREQ_ID          25
+#define GET_DDSFREQ_ID          28
 #define GET_DDSFREQ_NAME        "get_dds_freq"
-#define SET_ACQ_PARAM_ID        26
+#define SET_ACQ_PARAM_ID        29
 #define SET_ACQ_PARAM_NAME      "set_acq_param"
-#define GET_ACQ_SAMPLES_ID      27
+#define GET_ACQ_SAMPLES_ID      30
 #define GET_ACQ_SAMPLES_NAME    "get_acq_samples"
-#define GET_ACQ_CHAN_ID         28
+#define GET_ACQ_CHAN_ID         31
 #define GET_ACQ_CHAN_NAME       "get_acq_chan"
-#define SET_ACQ_START_ID        29
+#define SET_ACQ_START_ID        32
 #define SET_ACQ_START_NAME      "set_acq_start"
-#define END_ID                  30
+#define END_ID                  33
 
 static call_func_t call_func[END_ID] =
 {
@@ -529,6 +542,9 @@ static call_func_t call_func[END_ID] =
     {SET_SW_ON_NAME             , 0, 0, UINT32_T, {0}, {0}},
     {SET_SW_OFF_NAME            , 0, 0, UINT32_T, {0}, {0}},
     {GET_SW_NAME                , 0, 1, UINT32_T, {0}, {0}},
+    {SET_SW_CLK_EN_ON_NAME      , 0, 0, UINT32_T, {0}, {0}},
+    {SET_SW_CLK_EN_OFF_NAME     , 0, 0, UINT32_T, {0}, {0}},
+    {GET_SW_CLK_EN_NAME         , 0, 1, UINT32_T, {0}, {0}},
     {SET_SW_DIVCLK_NAME         , 0, 0, UINT32_T, {0}, {0}},
     {GET_SW_DIVCLK_NAME         , 0, 1, UINT32_T, {0}, {0}},
     {SET_SW_PHASECLK_NAME       , 0, 0, UINT32_T, {0}, {0}},
@@ -859,7 +875,7 @@ int main(int argc, char *argv[])
     program_name = argv[0];
 
     // loop over all of the options
-    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jkd:p:uen:q:i:l:c:gmta:z:RTXYSJGDPNUQILCAZMKCB:EFO",
+    while ((ch = getopt_long(argc, argv, "hvbro:w:x:y:s:jk12d:p:uen:q:i:l:c:gmta:z:RTXYSJ3GDPNUQILCAZMKCB:EFO",
                     long_options, NULL)) != -1)
     {
         // check to see if a single character or long option came through
@@ -914,6 +930,16 @@ int main(int argc, char *argv[])
                 // Set FPGA Deswitching Off
             case 'k':
                 call_func[SET_SW_OFF_ID].call = 1;
+                need_hostname = 1;
+                break;
+                // Set FPGA Switching clock enable on
+            case '1':
+                call_func[SET_SW_CLK_EN_ON_ID].call = 1;
+                need_hostname = 1;
+                break;
+                // Set FPGA Switching clock enable Off
+            case '2':
+                call_func[SET_SW_CLK_EN_OFF_ID].call = 1;
                 need_hostname = 1;
                 break;
                 // Set FE Switching On
@@ -1040,6 +1066,11 @@ int main(int argc, char *argv[])
                 // Get FPGA Deswitching State
             case 'J':
                 call_func[GET_SW_ID].call = 1;
+                need_hostname = 1;
+                break;
+                // Get FPGA Switching enable state
+            case '3':
+                call_func[GET_SW_CLK_EN_ID].call = 1;
                 need_hostname = 1;
                 break;
                 // Get FE Switching State
