@@ -42,7 +42,7 @@ class BPMExperiment():
             acq_npts = '100000'
             data_file_structure = 'bpm_amplitudes_baseband'
         elif datapath == 'fofb':
-            data_rate_decimation_ratio = '1112' # FIXME: data_rate_decim_factor should be ideally read from FPGA
+            data_rate_decimation_ratio = '1000' # FIXME: data_rate_decim_factor should be ideally read from FPGA
             acq_channel = '3'
             acq_npts = '500000'
             data_file_structure = 'bpm_amplitudes_baseband'
