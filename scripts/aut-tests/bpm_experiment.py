@@ -87,6 +87,15 @@ class BPMExperiment():
 
         # TODO: Check if everything was properly set
 
+        # Enable switching signal
+        command_argument_list = ['fcs_client']
+        command_argument_list.extend(['--setswclken' + self.metadata['rffe_switching'].split()[0]])
+        command_argument_list.extend(['--setfpgahostname', self.fpga_hostname])
+        if not self.debug:
+            subprocess.call(command_argument_list)
+        else:
+            print(command_argument_list)
+
         # Timestamp the start of data acquisition
         # FIXME: timestamp should ideally come together with data.
         t = time()
