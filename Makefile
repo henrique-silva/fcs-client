@@ -3,7 +3,7 @@ CMDSEP =;
 CC = gcc
 MAKE = make
 
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -Werror
 INCLUDE_DIRS = -I.
 LFLAGS = -L.
 LDFLAGS = -lbsmp
@@ -21,7 +21,8 @@ OUT = fcs_client
 REVISION=$(shell git describe --dirty --always)
 
 .SECONDEXPANSION:
-fcs_client_OBJS = fcs_client.o debug.o revision.o
+fcs_client_OBJS = fcs_client.o debug.o revision.o transport/ethernet.o \
+	transport/serial_rs232.o
 aut_test_SCRIPTS = bpm_experiment metadata_parser
 aut_test_USR_SCRIPTS = run_sweep run_single run_sweep_sausaging \
 		   run_bursts
