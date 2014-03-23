@@ -5,21 +5,31 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <inttypes.h>
-#include <arpa/inet.h>
 #include <getopt.h>
 #include <signal.h>
 #include <time.h>
 
 #include "fcs_client.h"
+#include "transport/transport.h"
+#include "transport/ethernet.h"
+#include "transport/serial_rs232.h"
 #include "revision.h"
 #include "debug.h"
 
 #define C "CLIENT: "
+#define PORT "8080" // the FPGA port client will be connecting to
+#define FE_PORT "6791" // the RFFE port client will be connecting to
+
+enum dev_type_e {
+    ETHERNET_DEV = 0,
+    SERIAL_RS232_DEV
+};
+
+// Our FPGA transport
+static struct transport_s transport_fpga;
+// Our FE transport
+static struct transport_s transport_fe;
+
 #define PACKET_SIZE             BSMP_MAX_MESSAGE
 #define PACKET_HEADER           BSMP_HEADER_SIZE
 
@@ -39,8 +49,6 @@
         }\
     }while(0)
 
-#define PORT "8080" // the FPGA port client will be connecting to
-#define FE_PORT "6791" // the RFFE port client will be connecting to
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define MONIT_POLL_RATE 200000 //usec
 
@@ -99,11 +107,6 @@ typedef struct _plot_values_monit_uint32_t {
 plot_values_monit_uint32_t pval_monit_uint32[PLOT_BUFFER_LEN];
 plot_values_monit_double_t pval_monit_double;
 
-/* Our FPGA socket */
-int sockfd;
-/* Our FE socket */
-int fe_sockfd;
-
 /* Our send/receive packet for the FPGA */
 recv_pkt_t recv_pkt;
 send_pkt_t send_pkt;
@@ -111,55 +114,6 @@ send_pkt_t send_pkt;
 recv_pkt_t fe_recv_pkt;
 send_pkt_t fe_send_pkt;
 
-/***************************************************************/
-/********************** Utility functions **********************/
-/***************************************************************/
-
-int __sendall(int fd, uint8_t *buf, uint32_t *len)
-{
-    uint32_t total = 0;        // how many bytes we've sent
-    uint32_t bytesleft = *len; // how many we have left to send
-    int32_t n;
-
-    while(total < *len) {
-        n = send(fd, (char *)buf+total, bytesleft, 0);
-        if (n == -1) { break; }
-        total += n;
-        bytesleft -= n;
-    }
-
-    *len = total; // return number actually sent here
-
-    return n==-1?-1:0; // return -1 on failure, 0 on success
-}
-
-int __recvall(int fd, uint8_t *buf, uint32_t *len)
-{
-    uint32_t total = 0;        // how many bytes we've recv
-    uint32_t bytesleft = *len; // how many we have left to recv
-    int32_t n;
-
-    while(total < *len) {
-        n = recv(fd, (char *)buf+total, bytesleft, 0);
-        if (n == -1) { break; }
-        total += n;
-        bytesleft -= n;
-    }
-
-    *len = total; // return number actually sent here
-
-    return n==-1?-1:0; // return -1 on failure, 0 on success
-}
-
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
 
 /***************************************************************/
 /**********************      Functions       *******************/
@@ -186,7 +140,7 @@ void print_packet (char* pre, uint8_t *data, uint32_t size)
 #endif
 }
 
-int __bpm_send(int fd, uint8_t *data, uint32_t *count)
+int __bpm_send(int (*send_f)(int, uint8_t *, uint32_t *), int fd, uint8_t *data, uint32_t *count)
 {
     uint8_t  packet[BSMP_MAX_MESSAGE];
     uint32_t packet_size = *count;
@@ -196,7 +150,12 @@ int __bpm_send(int fd, uint8_t *data, uint32_t *count)
 
     print_packet("SEND()", packet, packet_size);
 
-    int ret = __sendall(fd, packet, &len);
+    if (!send_f) {
+        fprintf(stderr, "recv function not implemented!\n");
+        return -1;
+    }
+
+    int ret = send_f(fd, packet, &len);
     DEBUGP ("bpm_send(%d): %d bytes sent!\n", fd, len);
 
     if(len != packet_size) {
@@ -208,13 +167,18 @@ int __bpm_send(int fd, uint8_t *data, uint32_t *count)
     return 0;
 }
 
-int __bpm_recv(int fd, uint8_t *data, uint32_t *count)
+int __bpm_recv(int (*recv_f)(int, uint8_t *, uint32_t *), int fd, uint8_t *data, uint32_t *count)
 {
     uint8_t packet[PACKET_SIZE] = {0};
     uint32_t packet_size;
     uint32_t len = PACKET_HEADER;
 
-    int ret = __recvall(fd, packet, &len);
+    if (!recv_f) {
+        fprintf(stderr, "recv function not implemented!\n");
+        return -1;
+    }
+
+    int ret = recv_f(fd, packet, &len);
     if(len != PACKET_HEADER) {
         if(ret < 0)
             perror("recv");
@@ -229,7 +193,7 @@ int __bpm_recv(int fd, uint8_t *data, uint32_t *count)
 
     DEBUGP ("bpm_recv(%d): %d bytes to recv!\n", fd, remaining);
 
-    ret = __recvall(fd, packet + PACKET_HEADER, &len);
+    ret = recv_f(fd, packet + PACKET_HEADER, &len);
     if(len != remaining) {
         if(ret < 0)
             perror("recv");
@@ -251,25 +215,51 @@ int __bpm_recv(int fd, uint8_t *data, uint32_t *count)
 /***************************************************************/
 /**********************      Wrappers       *******************/
 /***************************************************************/
+int bpm_init (enum dev_type_e dev_type, struct transport_s *transport)
+{
+    //dev_type is:
+    //0 -> Ethernet
+    //1 -> Serial RS-232
+
+    switch (dev_type) {
+        case ETHERNET_DEV:
+            transport->ops = &ethernet_ops;
+            break;
+
+        case SERIAL_RS232_DEV:
+            transport->ops = &serial_rs232_ops;
+            break;
+
+        // Ethernet is default
+        default:
+            transport->ops = &ethernet_ops;
+    }
+
+    return 0;
+}
 
 int bpm_fpga_send(uint8_t *data, uint32_t *count)
 {
-    return __bpm_send(sockfd, data, count); // sockfd is the FPGA socket
+    return __bpm_send(transport_fpga.ops->bpm_send, transport_fpga.fd, data, count);
+    //return transport_fpga.ops->bpm_send(transport_fpga.fd, data, count); // fd is the FPGA socket
 }
 
 int bpm_fpga_recv(uint8_t *data, uint32_t *count)
 {
-    return __bpm_recv(sockfd, data, count); // sockfd is the FPGA socket
+    return __bpm_recv(transport_fpga.ops->bpm_recv, transport_fpga.fd, data, count);
+    //return transport_fpga.ops->bpm_recv(transport_fpga.fd, data, count); // fd is the FPGA socket
 }
 
 int bpm_fe_send(uint8_t *data, uint32_t *count)
 {
-    return __bpm_send(fe_sockfd, data, count); // fe_sockfd is the FPGA socket
+    return __bpm_send(transport_fe.ops->bpm_send, transport_fe.fd, data, count);
+    //return transport_fe.ops->bpm_send(transport_fe.fd, data, count); // fd is the FE socket
 }
 
 int bpm_fe_recv(uint8_t *data, uint32_t *count)
 {
-    return __bpm_recv(fe_sockfd, data, count); // fe_sockfd is the FPGA socket
+    return __bpm_recv(transport_fe.ops->bpm_recv, transport_fe.fd, data, count);
+    //return transport_fe.ops->bpm_recv(transport_fe.fd, data, count); // fd is the FE socket
 }
 
 // Command-line handling
@@ -795,66 +785,6 @@ int read_bsmp_func_v(int verbose, call_func_t *func)
     return read_bsmp_val_v(verbose, (call_var_t *)func);
 }
 
-/***************************************************/
-/************ Socket-specific Functions *************/
-/***************************************************/
-int bpm_connection(char *hostname, char* port)
-{
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
-    char s[INET6_ADDRSTRLEN];
-    int yes = 1;
-    int fd;
-
-    // Socket specific part
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if ((rv = getaddrinfo(hostname, port, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return -1;
-    }
-
-    // loop through all the results and connect to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((fd = socket(p->ai_family, p->ai_socktype,
-                        p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
-        }
-
-        /* This is important for correct behaviour */
-        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes,
-                    sizeof(int)) == -1) {
-            perror("setsockopt");
-            return -2;
-            //exit(1);
-        }
-
-        if (connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(fd);
-            perror("client: connect");
-            continue;
-        }
-
-        break;
-    }
-
-    if (p == NULL) {
-        fprintf(stderr, "client: failed to connect\n");
-        return -3;
-    }
-
-    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-            s, sizeof s);
-    DEBUGP("client: connecting to %s\n", s);
-
-    freeaddrinfo(servinfo); // all done with this structure
-
-    return fd;
-}
-
 int main(int argc, char *argv[])
 {
     //struct addrinfo hints, *servinfo, *p;
@@ -1231,10 +1161,16 @@ int main(int argc, char *argv[])
     bsmp_client_t *fe_client = NULL;
     enum bsmp_err err;
 
-    if(need_fe_hostname) {
-        fe_sockfd = bpm_connection(fe_hostname, FE_PORT);
+    /* Initilize structures */
+    bpm_init (ETHERNET_DEV, &transport_fpga);
+    bpm_init (ETHERNET_DEV, &transport_fe);
+    //bpm_init (SERIAL_RS232_DEV, &transport_fe);
 
-        if (fe_sockfd < 0) {
+    if(need_fe_hostname) {
+        int *fd = &transport_fe.fd;
+        int fe_conn_err = transport_fe.ops->bpm_connection(fd, fe_hostname, FE_PORT);
+
+        if (fe_conn_err < 0) {
             fprintf(stderr, "Error connecting to FE server\n");
             goto exit_fe_conn;
         }
@@ -1260,9 +1196,11 @@ int main(int argc, char *argv[])
     bsmp_client_t *client = NULL;
 
     if(need_hostname){
-        sockfd = bpm_connection(hostname, PORT);
+        int *fd = &transport_fpga.fd;
+        int conn_err = transport_fpga.ops->bpm_connection(fd,
+                hostname, PORT);
 
-        if (sockfd < 0) {
+        if (conn_err < 0) {
             fprintf(stderr, "Error connecting to FPGA server\n");
             goto exit_fpga_conn;
         }
@@ -1475,14 +1413,14 @@ exit_fpga_destroy:
     bsmp_client_destroy(client);
     DEBUGP("BSMP FPGA deallocated\n");
 exit_fpga_close:
-    close (sockfd);
+    close (transport_fpga.fd);
     DEBUGP("Socket FPGA closed\n");
 exit_fpga_conn:
 exit_fe_destroy:
     bsmp_client_destroy (fe_client);
     DEBUGP("BSMP FE deallocated\n");
 exit_fe_close:
-    close (fe_sockfd);
+    close (transport_fe.fd);
     DEBUGP("Socket FE closed\n");
 exit_fe_conn:
     free (hostname);
