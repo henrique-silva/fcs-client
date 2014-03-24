@@ -4,31 +4,32 @@
 # ======
 # SIGNAL
 # ======
-signal_source = signalgenerator                                 # beam
-signal_source_signalgenerator_model = "R&S SMB100A-B1"          # comment this line if signal source is the beam
-signal_carrier_frequency = 477997680 Hz
+signal_source = beam                                                 #signalgenerator or beam
+#signal_beam_splitters = "4 ZFRSC-42"
+#signal_source_signalgenerator_model = "R&S SMB100A-B1"          # comment this line if signal source is the beam
+signal_carrier_frequency = 476310200.0 Hz                              
 signal_carrier_harmonic_number = 372
 #signal_filter = "Taisaw TA0568A"
-
 
 # ==============
 # EXTERNAL CLOCK
 # ==============
-external_clock_source = signalgenerator
-external_clock_source_signalgenerator_model = "R&S SMB100A-B1H"
-external_clock_power = 13 dBm
+external_clock_source = "SPEAR3 Wenzel Synthesizer"
+#external_clock_source_signalgenerator_model = "R&S SMB100A-B1H"
+external_clock_power = 18 dBm
 #external_clock_filter = "Minicircuits BPF-A122+"               # possible values: "Minicircuits PLP-70+" / use colons if several filters are cascaded (e.g. "Minicircuits PLP-70+", "Minicircuits PLP-70+")
 
 
 # ===============
 # BEAM PARAMETERS
 # ===============
-#beam_bunch_length = 16.6 ps
-#beam_current = 500 mA
-#beam_orbit_correction = off
-#beam_pattern = multibunch6fold                                  # multibunch6fold, singlebunch
-#beam_pattern_multibunch6fold_fill = 45                          # comment this line if single bunch is in use
-
+beam_bunch_length = 18 ps
+beam_current = 500 mA
+beam_orbit_correction = on
+beam_rf_correction = on
+beam_pattern = multibunch6fold                                  # multibunch6fold, singlebunch
+beam_pattern_fill = 45                                           # comment this line if single bunch is in use
+beam_topup = on
 
 # =================
 # CABLES PARAMETERS
@@ -43,7 +44,7 @@ external_clock_power = 13 dBm
 #rffe2adc_cables_delay_b = 10 ps
 #rffe2adc_cables_delay_c = 5 ps
 #rffe2adc_cables_delay_d = 20 ps
-rffe2bpm_cables_model = LMR195                                                           # possible values: LMR195, LMR400
+rffe2bpm_cables_model = lmr195                                                           # possible values: lmr195, lmr400
 rffe2bpm_cables_A_serialnumber = "125173-0018"
 rffe2bpm_cables_B_serialnumber = "125173-0028"
 rffe2bpm_cables_C_serialnumber = "125173-0027"
@@ -53,12 +54,16 @@ rffe_switching_cable_serialnumber = "125173-0030"
 # ========================
 # RF-BPM PICKUP PARAMETERS
 # ========================
-#bpm_button_diameter = 6 mm
-#bpm_button_gap = 0.3 mm
-#bpm_button_thickness = 2 mm
-#bpm_name = AMP01A
-#bpm_type = button_45deg                                                             # possible values: button_45deg, stripline_45deg, cavity
-#bpm_geometry = circular                                                             # possible values: circular, ellipsoidal, octagonal
+bpm_antenna_A = "IU"
+bpm_antenna_B = "IL"
+bpm_antenna_C = "OL"
+bpm_antenna_D = "OU"
+bpm_button_diameter = 12 mm
+bpm_button_gap = 0.3 mm
+bpm_button_thickness = 2 mm
+#bpm_name = "SPEAR XXXX"
+bpm_type = button_45deg                                                             # possible values: button_45deg, stripline_45deg, cavity
+bpm_geometry = octagonal                                                             # possible values: circular, ellipsoidal, octagonal
 #bpm_Kx = 10000000 mm
 #bpm_Ky = 10000000 mm
 
@@ -78,20 +83,20 @@ adc_board_version = fmc130_v1_passive_clock_distribution                        
 # RF FRONT-END (RFFE)
 # ===================
 rffe_signal_source = signal
-rffe_signal_carrier_maxpower = -60 dBm                                              # maximum carrier signal power among A, B, C, D antennas
-rffe_attenuators = 15 dB                                                     # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
+rffe_signal_carrier_maxpower = 0 dBm                                              # maximum carrier signal power among A, B, C, D antennas
+rffe_attenuators = 20 dB, 20 dB                                                     # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
 rffe_switching = off
 rffe_switching_phase = 0
-rffe_switching_frequency_ratio = 1112
+rffe_switching_frequency_ratio = 1000
 rffe_switching_frequency_reference = adc_clock                                      # possible values: beam_revolution_frequency, adc_clock
-rffe_board_version = rffe_v2_476MHz                                                 # possible values: rffe_v1_476MHz, rffe_v2_476MHz, rffe_v1_500MHz, rffe_v2_500MHz
+rffe_board_version = rffe_v1_476MHz                                                 # possible values: rffe_v1_476MHz, rffe_v2_476MHz, rffe_v1_500MHz, rffe_v2_500MHz
 #rffe_board_serialnumber = xxxxxxxxx
 
 
 # =========================
 # DIGITAL SIGNAL PROCESSING
 # =========================
-dsp_deswitching_phase = 80                                                         # possible values: 30, 210
+dsp_deswitching_phase = 100                                                         # possible values: 30, 210
 dsp_sausaging_window = tukey
 dsp_sausaging_window_parameters = 1
 dsp_sausaging = off
@@ -101,7 +106,7 @@ dsp_sausaging = off
 # =======
 # GENERAL
 # =======
-data_general_description = "Tests at SPEAR3, SSRL, SLAC, March 2014"
+data_general_description = "Tests at SPEAR3, SSRL, SLAC, 21st, March 2014"
 data_signature_method = md5                                                         # possible values: sha-1, sha-256, md5
 data_source = experimental                                                          # possible values: experimental, experimental_postprocessed, simulation
 location = "SPEAR3, SSRL, SLAC"                                                                   # SPEAR3, SSRL, SLAC, Menlo Park, CA, USA

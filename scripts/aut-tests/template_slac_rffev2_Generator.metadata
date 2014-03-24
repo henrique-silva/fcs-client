@@ -1,0 +1,86 @@
+# All comments in this templante will not be present in the generated metadata file
+# The comments shall be preceded by a # character
+
+# ======
+# SIGNAL
+# ======
+signal_source = signalgenerator                                                 #signalgenerator or beam
+#signal_beam_splitters = "4 ZFRSC-42"
+#signal_source_signalgenerator_model = "R&S SMB100A-B1"          # comment this line if signal source is the beam
+signal_carrier_frequency = 476310200.0 Hz                              
+signal_carrier_harmonic_number = 372
+#signal_filter = "Taisaw TA0568A"
+
+# ==============
+# EXTERNAL CLOCK
+# ==============
+#external_clock_source = "SPEAR3 Wenzel Synthesizer"
+external_clock_source_signalgenerator_model = "R&S SMB100A-B1H"
+external_clock_power = 16 dBm
+#external_clock_filter = "Minicircuits BPF-A122+"               # possible values: "Minicircuits PLP-70+" / use colons if several filters are cascaded (e.g. "Minicircuits PLP-70+", "Minicircuits PLP-70+")
+
+
+# =================
+# CABLES PARAMETERS
+# =================
+#bpm2rffe_cables_delay_a = 0 ps                                                      # antenna A has been taken as reference, thus it has value 0
+#bpm2rffe_cables_delay_b = 10 ps
+#bpm2rffe_cables_delay_c = 5 ps
+#bpm2rffe_cables_delay_d = 20 ps
+#bpm2rffe_cables_model = LMR400                                                           # possible values: LMR195, LMR400
+
+#rffe2adc_cables_delay_a = 0 ps                                                      # antenna A has been taken as reference, thus it has value 0
+#rffe2adc_cables_delay_b = 10 ps
+#rffe2adc_cables_delay_c = 5 ps
+#rffe2adc_cables_delay_d = 20 ps
+rffe2bpm_cables_model = lmr195                                                           # possible values: lmr195, lmr400
+rffe2bpm_cables_A_serialnumber = "125173-0018"
+rffe2bpm_cables_B_serialnumber = "125173-0028"
+rffe2bpm_cables_C_serialnumber = "125173-0027"
+rffe2bpm_cables_D_serialnumber = "125173-0007"
+rffe_switching_cable_serialnumber = "125173-0030"
+
+
+# ===================
+# A/D CONVERTER (ADC)
+# ===================
+adc_signal_source = rffe                                                             # possible values: rffe, signal, 4way_rfsplitter, rffe_channelA_4way_rfsplitter
+adc_clock_source = external_clock                                                   # possible values: onboard_pll
+adc_clock_sampling_harmonic = 50                                               # in relation to beam revolution harmonics
+adc_clock_sampling_offset = 0 ppm                                              # also know as offset-tune or frequency detune
+adc_board_version = fmc130_v1_passive_clock_distribution                            # possible values: fmc130_v1_passive_clock_distribution, fmc130_v1_active_clock_distribution_si571, fmc130_v1_active_clock_distribution_cvhd950
+#adc_board_serialnumber = xxxxxxxxx
+
+
+# ===================
+# RF FRONT-END (RFFE)
+# ===================
+rffe_signal_source = signal
+rffe_signal_carrier_maxpower = -20 dBm                                              # maximum carrier signal power among A, B, C, D antennas
+rffe_attenuators = 20 dB                                                            # use colons to separate each attenuator value, where the first value indicate the first stage (from input to output) and so on
+rffe_switching = off
+rffe_switching_phase = 0
+rffe_switching_frequency_ratio = 1000
+rffe_switching_frequency_reference = adc_clock                                      # possible values: beam_revolution_frequency, adc_clock
+rffe_board_version = rffe_v2_476MHz                                                 # possible values: rffe_v1_476MHz, rffe_v2_476MHz, rffe_v1_500MHz, rffe_v2_500MHz
+#rffe_board_serialnumber = xxxxxxxxx
+
+
+# =========================
+# DIGITAL SIGNAL PROCESSING
+# =========================
+dsp_deswitching_phase = 80                                                         # possible values: 30, 210
+dsp_sausaging_window = tukey
+dsp_sausaging_window_parameters = 0.2
+dsp_sausaging = off
+#dsp_firmware_version = xxxxxxxxx
+
+
+# =======
+# GENERAL
+# =======
+data_general_description = "Tests at SPEAR3, SSRL, SLAC, 21st, March 2014"
+data_signature_method = md5                                                         # possible values: sha-1, sha-256, md5
+data_source = experimental                                                          # possible values: experimental, experimental_postprocessed, simulation
+location = "SPEAR3, SSRL, SLAC"                                                                   # SPEAR3, SSRL, SLAC, Menlo Park, CA, USA
+location_timezone = PST                                                             # possible values: PST, BRT
