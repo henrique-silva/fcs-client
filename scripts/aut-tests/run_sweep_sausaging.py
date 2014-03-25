@@ -28,13 +28,13 @@ while True:
 
     if not input_text:
         if 'rffe_v1' in exp.metadata['rffe_board_version']:
-            exp.rffe_hostname = '10.0.17.200'
+            exp.rffe_hostname = '192.168.10.101'
         elif 'rffe_v2' in exp.metadata['rffe_board_version']:
-            exp.rffe_hostname = '10.0.17.201'
+            exp.rffe_hostname = '192.168.10.104'
         else:
             print('Unknown version of RFFE. Ending experiment...\n')
             break
-        
+
         # Find the number of attenuators on the RFFE
         att_items = exp.metadata['rffe_attenuators'].split(',')
         natt = len(att_items)

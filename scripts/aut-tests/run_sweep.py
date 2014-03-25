@@ -60,12 +60,12 @@ def run_sweep(argv):
                 rffe_gains = [13, 17]
                 rffe_power_thresholds = [0, 0]
                 rffe_attenuators_sweep = range(0,31,7)
-                exp.rffe_hostname = '10.0.17.200'
+                exp.rffe_hostname = '192.168.10.101'
             elif 'rffe_v2' in exp.metadata['rffe_board_version']:
                 rffe_gains = [17]
                 rffe_power_thresholds = [0]
                 rffe_attenuators_sweep = range(0,31,5)
-                exp.rffe_hostname = '10.0.17.201'
+                exp.rffe_hostname = '192.168.10.104'
             else:
                 print('Unknown version of RFFE. Ending experiment...\n')
                 break
