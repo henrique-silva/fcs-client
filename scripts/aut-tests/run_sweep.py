@@ -87,7 +87,7 @@ def run_sweep(argv):
                         # Sweep all RFFE attenuator values which respect power level thresholds
                         for att_value_set in att_combinations:
                             # Check if power level at each RFFE stage is lower than the allowed threshold
-                            power_level = float(exp.metadata['rffe_signal_carrier_maxpower'].split()[0])
+                            power_level = float(exp.metadata['rffe_signal_carrier_inputpower'].split()[0])
 
                             exceeded_threshold = False
                             i = 0
